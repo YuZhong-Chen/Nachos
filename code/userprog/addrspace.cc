@@ -23,13 +23,16 @@
 #include "machine.h"
 #include "noff.h"
 
+bool AddrSpace::PhysicPageStatus[NumPhysPages] = {UNUSED};
+
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the
 //	object file header, in case the file was generated on a little
 //	endian machine, and we're now running on a big endian machine.
 //----------------------------------------------------------------------
-static void SwapHeader(NoffHeader *noffH) {
+static void
+SwapHeader(NoffHeader *noffH) {
     noffH->noffMagic = WordToHost(noffH->noffMagic);
     noffH->code.size = WordToHost(noffH->code.size);
     noffH->code.virtualAddr = WordToHost(noffH->code.virtualAddr);
@@ -61,6 +64,7 @@ static void SwapHeader(NoffHeader *noffH) {
 //	only uniProgramming, and we have a single unsegmented page table
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace() {
+    /*
     pageTable = new TranslationEntry[NumPhysPages];
     for (int i = 0; i < NumPhysPages; i++) {
         pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
@@ -73,6 +77,7 @@ AddrSpace::AddrSpace() {
 
     // zero out the entire address space
     bzero(kernel->machine->mainMemory, MemorySize);
+    */
 }
 
 //----------------------------------------------------------------------
@@ -80,6 +85,10 @@ AddrSpace::AddrSpace() {
 // 	Deallocate an address space.
 //----------------------------------------------------------------------
 AddrSpace::~AddrSpace() {
+    for (int i = 0; i < numPages; i++) {
+        PhysicPageStatus[pageTable[i].physicalPage] = UNUSED;
+    }
+
     delete pageTable;
 }
 
@@ -126,6 +135,31 @@ bool AddrSpace::Load(char *fileName) {
                                        // at least until we have
                                        // virtual memory
 
+    pageTable = new TranslationEntry[numPages];
+    for (int i = 0; i < numPages; i++) {
+        pageTable[i].virtualPage = i;
+
+        int UnUsedPageIndex = -1;
+        for (int j = 0; j < NumPhysPages; j++) {
+            if (PhysicPageStatus[j] == UNUSED) {
+                PhysicPageStatus[j] = USING;
+                UnUsedPageIndex = j;
+                break;
+            }
+        }
+        if (UnUsedPageIndex == -1) {
+            // kernel->machine->RaiseException(MemoryLimitException, 0);
+            ASSERT(true);
+        }
+
+        pageTable[i].physicalPage = UnUsedPageIndex;
+        pageTable[i].valid = TRUE;
+        pageTable[i].use = FALSE;
+        pageTable[i].dirty = FALSE;
+        pageTable[i].readOnly = FALSE;
+        bzero(&kernel->machine->mainMemory[UnUsedPageIndex * PageSize], PageSize);
+    }
+
     DEBUG(dbgAddr, "Initializing address space: " << numPages << ", " << size);
 
     // then, copy in the code and data segments into memory
@@ -133,12 +167,18 @@ bool AddrSpace::Load(char *fileName) {
     if (noffH.code.size > 0) {
         DEBUG(dbgAddr, "Initializing code segment.");
         DEBUG(dbgAddr, noffH.code.virtualAddr << ", " << noffH.code.size);
-        executable->ReadAt(&(kernel->machine->mainMemory[noffH.code.virtualAddr]), noffH.code.size, noffH.code.inFileAddr);
+        executable->ReadAt(&(kernel->machine->mainMemory[pageTable[noffH.code.virtualAddr / PageSize].physicalPage * PageSize +
+                                                         noffH.code.virtualAddr % PageSize]),
+                           noffH.code.size,
+                           noffH.code.inFileAddr);
     }
     if (noffH.initData.size > 0) {
         DEBUG(dbgAddr, "Initializing data segment.");
         DEBUG(dbgAddr, noffH.initData.virtualAddr << ", " << noffH.initData.size);
-        executable->ReadAt(&(kernel->machine->mainMemory[noffH.initData.virtualAddr]), noffH.initData.size, noffH.initData.inFileAddr);
+        executable->ReadAt(&(kernel->machine->mainMemory[pageTable[noffH.initData.virtualAddr / PageSize].physicalPage * PageSize +
+                                                         noffH.initData.virtualAddr % PageSize]),
+                           noffH.initData.size,
+                           noffH.initData.inFileAddr);
     }
 
 #ifdef RDATA

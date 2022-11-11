@@ -252,7 +252,6 @@ void Kernel::ExecAll() {
         int a = Exec(execfile[i]);
     }
     currentThread->Finish();
-    // Kernel::Exec();
 }
 
 int Kernel::Exec(char *name) {
