@@ -33,7 +33,6 @@ const int STACK_FENCEPOST = 0xdedbeef;
 //
 //	"threadName" is an arbitrary string, useful for debugging.
 //----------------------------------------------------------------------
-
 Thread::Thread(char *threadName, int threadID) {
     ID = threadID;
     name = threadName;
@@ -59,7 +58,6 @@ Thread::Thread(char *threadName, int threadID) {
 //      because we didn't allocate it -- we got it automatically
 //      as part of starting up Nachos.
 //----------------------------------------------------------------------
-
 Thread::~Thread() {
     DEBUG(dbgThread, "Deleting thread: " << name);
     ASSERT(this != kernel->currentThread);
@@ -86,7 +84,6 @@ Thread::~Thread() {
 //	"func" is the procedure to run concurrently.
 //	"arg" is a single argument to be passed to the procedure.
 //----------------------------------------------------------------------
-
 void Thread::Fork(VoidFunctionPtr func, void *arg) {
     Interrupt *interrupt = kernel->interrupt;
     Scheduler *scheduler = kernel->scheduler;
@@ -114,7 +111,6 @@ void Thread::Fork(VoidFunctionPtr func, void *arg) {
 // 	overflows by not putting large data structures on the stack.
 // 	Don't do this: void foo() { int bigArray[10000]; ... }
 //----------------------------------------------------------------------
-
 void Thread::CheckOverflow() {
     if (stack != NULL) {
 #ifdef HPUX  // Stacks grow upward on the Snakes
@@ -135,7 +131,6 @@ void Thread::CheckOverflow() {
 //		(see Thread::Finish())
 //	2. enable interrupts (so we can get time-sliced)
 //----------------------------------------------------------------------
-
 void Thread::Begin() {
     ASSERT(this == kernel->currentThread);
     DEBUG(dbgThread, "Beginning thread: " << name);
@@ -157,8 +152,6 @@ void Thread::Begin() {
 // 	NOTE: we disable interrupts, because Sleep() assumes interrupts
 //	are disabled.
 //----------------------------------------------------------------------
-
-//
 void Thread::Finish() {
     (void)kernel->interrupt->SetLevel(IntOff);
     ASSERT(this == kernel->currentThread);
@@ -185,7 +178,6 @@ void Thread::Finish() {
 //
 // 	Similar to Thread::Sleep(), but a little different.
 //----------------------------------------------------------------------
-
 void Thread::Yield() {
     Thread *nextThread;
     IntStatus oldLevel = kernel->interrupt->SetLevel(IntOff);
@@ -247,7 +239,6 @@ void Thread::Sleep(bool finishing) {
 //	(which we can pass a pointer to), that then simply calls the
 //	member function.
 //----------------------------------------------------------------------
-
 static void ThreadFinish() { kernel->currentThread->Finish(); }
 static void ThreadBegin() { kernel->currentThread->Begin(); }
 void ThreadPrint(Thread *t) { t->Print(); }
@@ -286,7 +277,6 @@ PLabelToAddr(void *plabel) {
 //	"func" is the procedure to be forked
 //	"arg" is the parameter to be passed to the procedure
 //----------------------------------------------------------------------
-
 void Thread::StackAllocate(VoidFunctionPtr func, void *arg) {
     stack = (int *)AllocBoundedArray(StackSize * sizeof(int));
 
@@ -353,7 +343,6 @@ void Thread::StackAllocate(VoidFunctionPtr func, void *arg) {
 //	one for its state while executing user code, one for its state
 //	while executing kernel code.  This routine saves the former.
 //----------------------------------------------------------------------
-
 void Thread::SaveUserState() {
     for (int i = 0; i < NumTotalRegs; i++)
         userRegisters[i] = kernel->machine->ReadRegister(i);
@@ -367,7 +356,6 @@ void Thread::SaveUserState() {
 //	one for its state while executing user code, one for its state
 //	while executing kernel code.  This routine restores the former.
 //----------------------------------------------------------------------
-
 void Thread::RestoreUserState() {
     for (int i = 0; i < NumTotalRegs; i++)
         kernel->machine->WriteRegister(i, userRegisters[i]);
@@ -381,9 +369,7 @@ void Thread::RestoreUserState() {
 //	"which" is simply a number identifying the thread, for debugging
 //	purposes.
 //----------------------------------------------------------------------
-
-static void
-SimpleThread(int which) {
+static void SimpleThread(int which) {
     int num;
 
     for (num = 0; num < 5; num++) {
@@ -397,7 +383,6 @@ SimpleThread(int which) {
 // 	Set up a ping-pong between two threads, by forking a thread
 //	to call SimpleThread, and then calling SimpleThread ourselves.
 //----------------------------------------------------------------------
-
 void Thread::SelfTest() {
     DEBUG(dbgThread, "Entering Thread::SelfTest");
 

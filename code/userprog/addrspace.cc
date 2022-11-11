@@ -29,9 +29,7 @@
 //	object file header, in case the file was generated on a little
 //	endian machine, and we're now running on a big endian machine.
 //----------------------------------------------------------------------
-
-static void
-SwapHeader(NoffHeader *noffH) {
+static void SwapHeader(NoffHeader *noffH) {
     noffH->noffMagic = WordToHost(noffH->noffMagic);
     noffH->code.size = WordToHost(noffH->code.size);
     noffH->code.virtualAddr = WordToHost(noffH->code.virtualAddr);
@@ -60,9 +58,8 @@ SwapHeader(NoffHeader *noffH) {
 // 	Create an address space to run a user program.
 //	Set up the translation from program memory to physical
 //	memory.  For now, this is really simple (1:1), since we are
-//	only uniprogramming, and we have a single unsegmented page table
+//	only uniProgramming, and we have a single unsegmented page table
 //----------------------------------------------------------------------
-
 AddrSpace::AddrSpace() {
     pageTable = new TranslationEntry[NumPhysPages];
     for (int i = 0; i < NumPhysPages; i++) {
@@ -80,9 +77,8 @@ AddrSpace::AddrSpace() {
 
 //----------------------------------------------------------------------
 // AddrSpace::~AddrSpace
-// 	Dealloate an address space.
+// 	Deallocate an address space.
 //----------------------------------------------------------------------
-
 AddrSpace::~AddrSpace() {
     delete pageTable;
 }
@@ -96,7 +92,6 @@ AddrSpace::~AddrSpace() {
 //
 //	"fileName" is the file containing the object code to load into memory
 //----------------------------------------------------------------------
-
 bool AddrSpace::Load(char *fileName) {
     OpenFile *executable = kernel->fileSystem->Open(fileName);
     NoffHeader noffH;
@@ -168,14 +163,13 @@ bool AddrSpace::Load(char *fileName) {
 //      the address space
 //
 //----------------------------------------------------------------------
-
 void AddrSpace::Execute(char *fileName) {
     kernel->currentThread->space = this;
 
     this->InitRegisters();  // set the initial register values
     this->RestoreState();   // load page table register
 
-    kernel->machine->Run();  // jump to the user progam
+    kernel->machine->Run();  // jump to the user program
 
     ASSERTNOTREACHED();  // machine->Run never returns;
 
@@ -191,12 +185,10 @@ void AddrSpace::Execute(char *fileName) {
 //	will be saved/restored into the currentThread->userRegisters
 //	when this thread is context switched out.
 //----------------------------------------------------------------------
-
 void AddrSpace::InitRegisters() {
     Machine *machine = kernel->machine;
-    int i;
 
-    for (i = 0; i < NumTotalRegs; i++)
+    for (int i = 0; i < NumTotalRegs; i++)
         machine->WriteRegister(i, 0);
 
     // Initial program counter -- must be location of "Start",
@@ -223,7 +215,6 @@ void AddrSpace::InitRegisters() {
 //
 //	For now, don't need to save anything!
 //----------------------------------------------------------------------
-
 void AddrSpace::SaveState() {}
 
 //----------------------------------------------------------------------
@@ -233,7 +224,6 @@ void AddrSpace::SaveState() {}
 //
 //      For now, tell the machine where to find the page table.
 //----------------------------------------------------------------------
-
 void AddrSpace::RestoreState() {
     kernel->machine->pageTable = pageTable;
     kernel->machine->pageTableSize = numPages;
@@ -243,12 +233,11 @@ void AddrSpace::RestoreState() {
 // AddrSpace::Translate
 //  Translate the virtual address in _vaddr_ to a physical address
 //  and store the physical address in _paddr_.
-//  The flag _isReadWrite_ is false (0) for read-only access; true (1)
-//  for read-write access.
+//  The flag _isReadWrite_ is false (0) for  read-only access;
+//                             true (1) for read-write access.
 //  Return any exceptions caused by the address translation.
 //----------------------------------------------------------------------
-ExceptionType
-AddrSpace::Translate(unsigned int vaddr, unsigned int *paddr, int isReadWrite) {
+ExceptionType AddrSpace::Translate(unsigned int vaddr, unsigned int *paddr, int isReadWrite) {
     TranslationEntry *pte;
     int pfn;
     unsigned int vpn = vaddr / PageSize;
@@ -273,8 +262,10 @@ AddrSpace::Translate(unsigned int vaddr, unsigned int *paddr, int isReadWrite) {
         return BusErrorException;
     }
 
-    pte->use = TRUE;  // set the use, dirty bits
+    // set the Use Bits
+    pte->use = TRUE;
 
+    // set the Dirty Bits
     if (isReadWrite)
         pte->dirty = TRUE;
 
@@ -282,8 +273,7 @@ AddrSpace::Translate(unsigned int vaddr, unsigned int *paddr, int isReadWrite) {
 
     ASSERT((*paddr < MemorySize));
 
-    // cerr << " -- AddrSpace::Translate(): vaddr: " << vaddr <<
-    //   ", paddr: " << *paddr << "\n";
+    // cerr << " -- AddrSpace::Translate(): vaddr: " << vaddr << ", paddr: " << *paddr << "\n";
 
     return NoException;
 }
