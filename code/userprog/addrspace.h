@@ -46,9 +46,8 @@ class AddrSpace {
     static bool PhysicPageStatus[NumPhysPages];
 
     enum PageStatus {
-        UNUSED = 0,
-        USING = 1,
-        Unknown
+        UNUSED = false,
+        USING = true
     };
 
     void InitRegisters();  // Initialize user-level CPU registers, before jumping to user code
