@@ -18,10 +18,11 @@
 // All rights reserved.  See copyright.h for copyright notice and limitation
 // of liability and disclaimer of warranty provisions.
 
-#include "scheduler.h"
-
 #include "copyright.h"
 #include "debug.h"
+//
+#include "scheduler.h"
+//
 #include "main.h"
 
 //----------------------------------------------------------------------
@@ -51,7 +52,6 @@ Scheduler::~Scheduler() {
 //
 //	"thread" is the thread to be put on the ready list.
 //----------------------------------------------------------------------
-
 void Scheduler::ReadyToRun(Thread *thread) {
     ASSERT(kernel->interrupt->getLevel() == IntOff);
     DEBUG(dbgThread, "Putting thread on ready list: " << thread->getName());
@@ -67,9 +67,7 @@ void Scheduler::ReadyToRun(Thread *thread) {
 // Side effect:
 //	Thread is removed from the ready list.
 //----------------------------------------------------------------------
-
-Thread *
-Scheduler::FindNextToRun() {
+Thread *Scheduler::FindNextToRun() {
     ASSERT(kernel->interrupt->getLevel() == IntOff);
 
     if (readyList->IsEmpty()) {

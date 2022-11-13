@@ -113,6 +113,11 @@ void Kernel::Initialize() {
     postOfficeOut = new PostOfficeOutput(reliability);
 
     interrupt->Enable();
+
+    // Init the recording table of physic page.
+    for (int i = 0; i < NumPhysPages; i++) {
+        PhysicPageStatus[i] = PAGE_UNUSED;
+    }
 }
 
 //----------------------------------------------------------------------
@@ -249,10 +254,9 @@ void ForkExecute(Thread *t) {
 
 void Kernel::ExecAll() {
     for (int i = 1; i <= execfileNum; i++) {
-        int a = Exec(execfile[i]);
+        Exec(execfile[i]);
     }
     currentThread->Finish();
-    // Kernel::Exec();
 }
 
 int Kernel::Exec(char *name) {
@@ -287,4 +291,36 @@ int Kernel::Exec(char *name) {
     //	currentThread->Finish();
     //  Kernel::Run();
     //  cout << "after ThreadedKernel:Run();" << endl;  // unreachable
+}
+
+//----------------------------------------------------------------------
+// Kernel::FindUnusedPhysicPage
+//      Find the unused physic page to store the data.
+//      Return -1 if there doesn't has any unused physic page.
+//      Otherwise, return the physic page num.
+//----------------------------------------------------------------------
+int Kernel::FindUnusedPhysicPage() {
+    int UnUsedPageIndex = -1;
+    for (int i = 0; i < NumPhysPages; i++) {
+        if (PhysicPageStatus[i] == PAGE_UNUSED) {
+            PhysicPageStatus[i] = PAGE_USING;
+            UnUsedPageIndex = i;
+            break;
+        }
+    }
+    return UnUsedPageIndex;
+}
+
+//----------------------------------------------------------------------
+// Kernel::FreePhysicPage
+//      Release the Physic Page.
+//      _id_ : The id of physic page that need to be released.
+//
+//      Return false if there the physic page is already unused.
+//      Otherwise, return true.
+//----------------------------------------------------------------------
+bool Kernel::FreePhysicPage(int id) {
+    bool oldStatus = PhysicPageStatus[id];
+    PhysicPageStatus[id] = PAGE_UNUSED;
+    return (oldStatus == PAGE_USING);
 }
