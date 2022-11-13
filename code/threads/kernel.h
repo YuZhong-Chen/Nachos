@@ -57,6 +57,9 @@ class Kernel {
     int ReadFile(char *buffer, int size, OpenFileId id);   // fileSystem call
     int CloseFile(OpenFileId id);                          // fileSystem call
 
+    int FindUnusedPhysicPage();   // Find the unused physic page to store the data.
+    bool FreePhysicPage(int id);  // Release the Physic Page.
+
     // These are public for notational convenience; really,
     // they're global variables used everywhere.
 
@@ -85,6 +88,14 @@ class Kernel {
     double reliability;  // likelihood messages are dropped
     char *consoleIn;     // file to read console input from
     char *consoleOut;    // file to send console output to
+
+    // Recording the Physic Page.
+    bool PhysicPageStatus[NumPhysPages];
+    enum PageStatus {
+        PAGE_UNUSED = false,
+        PAGE_USING = true
+    };
+
 #ifndef FILESYS_STUB
     bool formatFlag;  // format the disk if this is true
 #endif

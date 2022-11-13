@@ -42,14 +42,6 @@ class AddrSpace {
     unsigned int numPages;        // Number of pages in the virtual
                                   // address space
 
-    // Recording the Physic Page.
-    static bool PhysicPageStatus[NumPhysPages];
-
-    enum PageStatus {
-        UNUSED = false,
-        USING = true
-    };
-
     void InitRegisters();  // Initialize user-level CPU registers, before jumping to user code
 };
 

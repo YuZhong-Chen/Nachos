@@ -194,6 +194,27 @@ void ExceptionHandler(ExceptionType which) {
                     break;
             }
             break;
+        case PageFaultException:
+            cerr << "User mode Exception: PageFaultException\n";
+            break;
+        case ReadOnlyException:
+            cerr << "User mode Exception: ReadOnlyException\n";
+            break;
+        case BusErrorException:
+            cerr << "User mode Exception: BusErrorException\n";
+            break;
+        case AddressErrorException:
+            cerr << "User mode Exception: AddressErrorException\n";
+            break;
+        case OverflowException:
+            cerr << "User mode Exception: OverflowException\n";
+            break;
+        case IllegalInstrException:
+            cerr << "User mode Exception: IllegalInstrException\n";
+            break;
+        case MemoryLimitException:
+            cerr << "User mode Exception: MemoryLimitException\n";
+            break;
         default:
             cerr << "Unexpected user mode exception " << (int)which << "\n";
             break;

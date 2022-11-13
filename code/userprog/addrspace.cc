@@ -23,8 +23,6 @@
 #include "machine.h"
 #include "noff.h"
 
-bool AddrSpace::PhysicPageStatus[NumPhysPages] = {UNUSED};
-
 //----------------------------------------------------------------------
 // SwapHeader
 // 	Do little endian to big endian conversion on the bytes in the
@@ -58,27 +56,9 @@ static void SwapHeader(NoffHeader *noffH) {
 //----------------------------------------------------------------------
 // AddrSpace::AddrSpace
 // 	Create an address space to run a user program.
-//	Set up the translation from program memory to physical
-//	memory.  For now, this is really simple (1:1), since we are
-//	only uniProgramming, and we have a single unsegmented page table
+//	Set up the translation from program memory to physical memory.
 //----------------------------------------------------------------------
 AddrSpace::AddrSpace() {
-    /* This is original code.
-       It only support uni-programming.
-
-    pageTable = new TranslationEntry[NumPhysPages];
-    for (int i = 0; i < NumPhysPages; i++) {
-        pageTable[i].virtualPage = i;  // for now, virt page # = phys page #
-        pageTable[i].physicalPage = i;
-        pageTable[i].valid = TRUE;
-        pageTable[i].use = FALSE;
-        pageTable[i].dirty = FALSE;
-        pageTable[i].readOnly = FALSE;
-    }
-
-    // zero out the entire address space
-    bzero(kernel->machine->mainMemory, MemorySize);
-    */
 }
 
 //----------------------------------------------------------------------
@@ -88,7 +68,7 @@ AddrSpace::AddrSpace() {
 AddrSpace::~AddrSpace() {
     for (int i = 0; i < numPages; i++) {
         // Free the PhysicPage.
-        PhysicPageStatus[pageTable[i].physicalPage] = UNUSED;
+        kernel->FreePhysicPage(pageTable[i].physicalPage);
     }
 
     delete pageTable;
@@ -132,36 +112,28 @@ bool AddrSpace::Load(char *fileName) {
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);  // check we're not trying
-                                       // to run anything too big --
-                                       // at least until we have
-                                       // virtual memory
+    // Check we're not trying to run anything too big,
+    // at least until we have virtual memory
+    if (numPages > NumPhysPages) {
+        ExceptionHandler(MemoryLimitException);
+        return false;
+    }
 
     pageTable = new TranslationEntry[numPages];
     for (int i = 0; i < numPages; i++) {
         pageTable[i].virtualPage = i;
-
-        // Find unused physic page.
-        int UnUsedPageIndex = -1;
-        for (int j = 0; j < NumPhysPages; j++) {
-            if (PhysicPageStatus[j] == UNUSED) {
-                PhysicPageStatus[j] = USING;
-                UnUsedPageIndex = j;
-                break;
-            }
-        }
+        pageTable[i].physicalPage = kernel->FindUnusedPhysicPage();
 
         // Can't find unused memory -> MemoryLimitException
-        if (UnUsedPageIndex == -1) {
+        if (pageTable[i].physicalPage == -1) {
             ExceptionHandler(MemoryLimitException);
         }
 
-        pageTable[i].physicalPage = UnUsedPageIndex;
         pageTable[i].valid = TRUE;
         pageTable[i].use = FALSE;
         pageTable[i].dirty = FALSE;
         pageTable[i].readOnly = FALSE;
-        bzero(&kernel->machine->mainMemory[UnUsedPageIndex * PageSize], PageSize);
+        bzero(&kernel->machine->mainMemory[pageTable[i].physicalPage * PageSize], PageSize);
     }
 
     DEBUG(dbgAddr, "Initializing address space: " << numPages << ", " << size);
