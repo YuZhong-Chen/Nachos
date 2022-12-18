@@ -192,7 +192,7 @@ void Thread::Yield() {
     DEBUG(dbgThread, "Yielding thread: " << name);
 
     kernel->scheduler->ReadyToRun(this);
-    nextThread = kernel->scheduler->FindNextToRun();
+    nextThread = kernel->scheduler->FindNextToRun(true);
     if (nextThread != NULL) {
         kernel->scheduler->Run(nextThread, FALSE);
     }
@@ -231,13 +231,14 @@ void Thread::Sleep(bool finishing) {
     // Running State -> Waiting State
     status = BLOCKED;
 
+    // Update Approximated Burst Time.
     if (ID != 0 && Priority >= 100) {
         int oldApproximatedBurstTime = ApproximatedBurstTime;
         ApproximatedBurstTime = 0.5 * RunningBurstTime + 0.5 * oldApproximatedBurstTime;
         DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << ID << " update approximate burst time, from: " << oldApproximatedBurstTime << ", add " << RunningBurstTime << ", to " << ApproximatedBurstTime);
     }
 
-    while ((nextThread = kernel->scheduler->FindNextToRun()) == NULL) {
+    while ((nextThread = kernel->scheduler->FindNextToRun(true)) == NULL) {
         kernel->interrupt->Idle();  // no one to run, wait for an interrupt
     }
     // returns when it's time for us to run
@@ -488,10 +489,20 @@ int Thread::GetStartTime() {
     return this->StartTime;
 }
 
+//----------------------------------------------------------------------
+//  Thread::GetStartTime
+//  Reset the Waiting Time for the thread.
+//----------------------------------------------------------------------
 void Thread::ResetWaitingTime() {
     WaitingTime = 0;
 }
 
+//----------------------------------------------------------------------
+//  Thread::IncreaseWaitingTime
+//      Increase the Waiting time by parameter.
+//
+//  Return boolean which indicate whether the Priority has changed.
+//----------------------------------------------------------------------
 bool Thread::IncreaseWaitingTime(int Time) {
     ASSERT(status == READY);
 
@@ -509,6 +520,10 @@ bool Thread::IncreaseWaitingTime(int Time) {
     return false;
 }
 
+//----------------------------------------------------------------------
+//  Thread::GetWaitingTime
+//  Get the Waiting Time for the thread.
+//----------------------------------------------------------------------
 int Thread::GetWaitingTime() {
     return WaitingTime;
 }
@@ -522,6 +537,23 @@ int Thread::ComparePriority(Thread *x, Thread *y) {
         return -1;
     } else if (x->Priority < y->Priority) {
         return 1;
+    } else {
+        return 0;
+    }
+}
+
+//----------------------------------------------------------------------
+//  Thread::ComparePriority
+//  Compare which Thread has shorter Burst Time.
+//----------------------------------------------------------------------
+int Thread::CompareApproximatedBurstTime(Thread *x, Thread *y) {
+    int X_BurstTime = x->ApproximatedBurstTime;
+    int Y_BurstTime = y->ApproximatedBurstTime;
+
+    if (X_BurstTime > Y_BurstTime) {
+        return 1;
+    } else if (X_BurstTime < Y_BurstTime) {
+        return -1;
     } else {
         return 0;
     }

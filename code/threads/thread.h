@@ -159,6 +159,7 @@ class Thread {
     int GetWaitingTime();
 
     static int ComparePriority(Thread *x, Thread *y);
+    static int CompareApproximatedBurstTime(Thread *x, Thread *y);
 
     AddrSpace *space;  // User code this thread is running.
 };

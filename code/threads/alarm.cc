@@ -44,18 +44,27 @@ Alarm::Alarm(bool doRandom) {
 //      if we're currently running something (in other words, not idle).
 //----------------------------------------------------------------------
 void Alarm::CallBack() {
-    Interrupt *interrupt = kernel->interrupt;
+    Interrupt* interrupt = kernel->interrupt;
     MachineStatus status = interrupt->getStatus();
     int CurrentTicks = kernel->stats->totalTicks;
 
+    Thread* NextThread = kernel->scheduler->FindNextToRun(false);
+    if (NextThread == NULL) {
+        NextThread = kernel->currentThread;
+    }
+
     // Preemptive
-    if (kernel->currentThread->GetPriority() <= 49) {  // Round-Robin
+    if (kernel->currentThread->GetPriority() <= 49 ||
+        (kernel->currentThread->GetPriority() <= 99 && NextThread->GetPriority() >= 100) ||
+        (kernel->currentThread->GetPriority() >= 100 && NextThread->GetPriority() >= 100 &&
+         (kernel->currentThread->GetApproximatedBurstTime() - kernel->currentThread->GetRunningBurstTime()) >
+             (NextThread->GetApproximatedBurstTime() - NextThread->GetRunningBurstTime()))) {
         if (status != IdleMode) {
             interrupt->YieldOnReturn();  // trigger context switch
         }
     }
 
-    kernel->scheduler->AgingThread(CurrentTicks - LastCallBackTicks);
+    kernel->scheduler->AgingThread(CurrentTicks - LastCallBackTicks);  // Should always be 100.
 
     LastCallBackTicks = CurrentTicks;
 }

@@ -5,7 +5,7 @@ int main() {
 
     for (n = 1; n < 10; ++n) {
         PrintInt(1);
-        for (i = 0; i < 15000; ++i)
+        for (i = 0; i < 100; ++i)
             ;
     }
 

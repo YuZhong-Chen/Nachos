@@ -33,7 +33,7 @@
 //	Initially, no ready threads.
 //----------------------------------------------------------------------
 Scheduler::Scheduler() {
-    ReadyList_L1 = new SortedList<Thread *>(Thread::ComparePriority);
+    ReadyList_L1 = new SortedList<Thread *>(Thread::CompareApproximatedBurstTime);
     ReadyList_L2 = new SortedList<Thread *>(Thread::ComparePriority);
     ReadyList_L3 = new List<Thread *>;
 
@@ -66,21 +66,16 @@ void Scheduler::ReadyToRun(Thread *thread) {
     int Priority = thread->GetPriority();
 
     if (Priority >= 100) {
-        // DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << thread->getID() << " is inserted into queue L1");
+        DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                               << thread->getID() << " is inserted into queue L1");
         ReadyList_L1->Insert(thread);
-
-        // if (kernel->currentThread->GetPriority() <= 99 || thread->GetApproximatedBurstTime() - thread->GetRunningBurstTime() < kernel->currentThread->GetApproximatedBurstTime() - kernel->currentThread->GetRunningBurstTime()) {
-        //     kernel->currentThread->Yield();
-        // }
     } else if (Priority >= 50) {
-        // DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << thread->getID() << " is inserted into queue L2");
+        DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                               << thread->getID() << " is inserted into queue L2");
         ReadyList_L2->Insert(thread);
-
-        // if (kernel->currentThread->GetPriority() <= 49) {
-        //     kernel->currentThread->Yield();
-        // }
     } else {
-        // DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << thread->getID() << " is inserted into queue L3");
+        DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                               << thread->getID() << " is inserted into queue L3");
         ReadyList_L3->Append(thread);
     }
 }
@@ -89,27 +84,30 @@ void Scheduler::ReadyToRun(Thread *thread) {
 // Scheduler::FindNextToRun
 // 	Return the next thread to be scheduled onto the CPU.
 //	If there are no ready threads, return NULL.
-// Side effect:
-//	Thread is removed from the ready list.
 //----------------------------------------------------------------------
-Thread *Scheduler::FindNextToRun() {
+Thread *Scheduler::FindNextToRun(bool isRemoved) {
     ASSERT(kernel->interrupt->getLevel() == IntOff);
 
     Thread *RemovedThread = NULL;
     if (!ReadyList_L1->IsEmpty()) {
-        RemovedThread = ReadyList_L1->RemoveFront();
-        // DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << RemovedThread->getID() << " is removed from queue L1");
+        RemovedThread = isRemoved ? ReadyList_L1->RemoveFront() : ReadyList_L1->Front();
+        if (isRemoved) {
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                                   << RemovedThread->getID() << " is removed from queue L1");
+        }
     } else if (!ReadyList_L2->IsEmpty()) {
-        RemovedThread = ReadyList_L2->RemoveFront();
-        // DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << RemovedThread->getID() << " is removed from queue L2");
+        RemovedThread = isRemoved ? ReadyList_L2->RemoveFront() : ReadyList_L2->Front();
+        if (isRemoved) {
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                                   << RemovedThread->getID() << " is removed from queue L2");
+        }
     } else if (!ReadyList_L3->IsEmpty()) {
-        RemovedThread = ReadyList_L3->RemoveFront();
-        // DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << RemovedThread->getID() << " is removed from queue L3");
+        RemovedThread = isRemoved ? ReadyList_L3->RemoveFront() : ReadyList_L3->Front();
+        if (isRemoved) {
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                                   << RemovedThread->getID() << " is removed from queue L3");
+        }
     }
-
-    // if (RemovedThread != NULL) {
-    //     cout << "Ticks : " << kernel->stats->totalTicks << " Select : " << RemovedThread->getID() << '\n';
-    // }
 
     return RemovedThread;
 }
@@ -131,7 +129,6 @@ Thread *Scheduler::FindNextToRun() {
 //		once we're no longer running on its stack
 //		(when the next thread starts running)
 //----------------------------------------------------------------------
-
 void Scheduler::Run(Thread *nextThread, bool finishing) {
     Thread *oldThread = kernel->currentThread;
 
@@ -157,10 +154,14 @@ void Scheduler::Run(Thread *nextThread, bool finishing) {
     nextThread->ResetWaitingTime();
 
     if (oldThread != nextThread) {
-        DEBUG(dbgThread, "Switching from: " << oldThread->getName() << " to: " << nextThread->getName());
+        DEBUG(dbgThread, "Switching from: " << oldThread->getName() << " to: "
+                                            << nextThread->getName());
 
         if (oldThread->getID() != 0)
-            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << nextThread->getID() << " is now selected for execution, thread " << oldThread->getID() << " is replaced, and it has executed " << oldThread->GetRunningBurstTime() << " ticks");
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread "
+                                   << nextThread->getID() << " is now selected for execution, thread "
+                                   << oldThread->getID() << " is replaced, and it has executed "
+                                   << oldThread->GetRunningBurstTime() << " ticks");
 
         // This is a machine-dependent assembly language routine defined
         // in switch.s.  You may have to think
@@ -200,6 +201,10 @@ void Scheduler::CheckToBeDestroyed() {
     }
 }
 
+//----------------------------------------------------------------------
+// Scheduler::AgingThread
+// 	Aging the Thread in each ReadyList by the parameter.
+//----------------------------------------------------------------------
 void Scheduler::AgingThread(int Ticks) {
     std::queue<Thread *> CheckQueue;
     std::queue<Thread *> UpdateQueue;
@@ -209,8 +214,12 @@ void Scheduler::AgingThread(int Ticks) {
         Thread *temp = ReadyList_L3->RemoveFront();
         if (temp->IncreaseWaitingTime(Ticks) && temp->GetPriority() >= 50) {
             UpdateQueue.push(temp);
-            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << temp->getID() << " is removed from queue L3");
-            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << temp->getID() << " is inserted into queue L2");
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks
+                                   << ": Thread " << temp->getID()
+                                   << " is removed from queue L3");
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks
+                                   << ": Thread " << temp->getID()
+                                   << " is inserted into queue L2");
         } else {
             CheckQueue.push(temp);
         }
@@ -229,8 +238,12 @@ void Scheduler::AgingThread(int Ticks) {
         Thread *temp = ReadyList_L2->RemoveFront();
         if (temp->IncreaseWaitingTime(Ticks) && temp->GetPriority() >= 100) {
             UpdateQueue.push(temp);
-            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << temp->getID() << " is removed from queue L2");
-            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << temp->getID() << " is inserted into queue L1");
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks
+                                   << ": Thread " << temp->getID()
+                                   << " is removed from queue L2");
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks
+                                   << ": Thread " << temp->getID()
+                                   << " is inserted into queue L1");
         } else {
             CheckQueue.push(temp);
         }
