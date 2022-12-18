@@ -130,12 +130,35 @@ class Thread {
     // A thread running a user program actually has *two* sets of CPU registers --
     // one for its state while executing user code, one for its state
     // while executing kernel code.
-
     int userRegisters[NumTotalRegs];  // user-level CPU register state
+
+    int ApproximatedBurstTime;
+    int RunningBurstTime;
+    int WaitingTime;
+    int StartTime;
+    int Priority;
 
    public:
     void SaveUserState();     // save user-level register state
     void RestoreUserState();  // restore user-level register state
+
+    int SetPriority(int Priority);
+    int GetPriority();
+
+    int SetApproximatedBurstTime(int Burst);
+    int GetApproximatedBurstTime();
+
+    int SetRunningBurstTime(int Burst);
+    int GetRunningBurstTime();
+
+    void SetStartTime(int Time);
+    int GetStartTime();
+
+    void ResetWaitingTime();
+    bool IncreaseWaitingTime(int Time);
+    int GetWaitingTime();
+
+    static int ComparePriority(Thread *x, Thread *y);
 
     AddrSpace *space;  // User code this thread is running.
 };

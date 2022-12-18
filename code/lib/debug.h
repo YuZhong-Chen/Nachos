@@ -30,6 +30,7 @@ const char dbgFile = 'f';    // file system
 const char dbgAddr = 'a';    // address spaces
 const char dbgNet = 'n';     // network emulation
 const char dbgSys = 'u';     // systemCall
+const char dbgTick = 'z';    // CPU Tick
 const char dbgTraCode = 'c';
 
 class Debug {
@@ -51,7 +52,7 @@ extern Debug *debug;
 #define DEBUG(flag, expr)          \
     if (!debug->IsEnabled(flag)) { \
     } else {                       \
-        cerr << expr << "\n";      \
+        cout << expr << "\n";      \
     }
 
 //----------------------------------------------------------------------

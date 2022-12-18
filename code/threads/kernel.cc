@@ -24,7 +24,6 @@
 // 	Interpret command line arguments in order to determine flags
 //	for the initialization (see also comments in main.cc)
 //----------------------------------------------------------------------
-
 Kernel::Kernel(int argc, char **argv) {
     randomSlice = FALSE;
     debugUserProg = FALSE;
@@ -48,7 +47,12 @@ Kernel::Kernel(int argc, char **argv) {
             debugUserProg = TRUE;
         } else if (strcmp(argv[i], "-e") == 0) {
             execfile[++execfileNum] = argv[++i];
-            cout << execfile[execfileNum] << "\n";
+            execfilePriority[execfileNum] = 0;
+            // cout << execfile[execfileNum] << "\n";
+        } else if (strcmp(argv[i], "-ep") == 0) {
+            execfile[++execfileNum] = argv[++i];
+            execfilePriority[execfileNum] = atoi(argv[++i]);
+            // cout << execfile[execfileNum] << ". Priority : " << execfilePriority[execfileNum] << "\n";
         } else if (strcmp(argv[i], "-ci") == 0) {
             ASSERT(i + 1 < argc);
             consoleIn = argv[i + 1];
@@ -95,6 +99,7 @@ void Kernel::Initialize() {
 
     currentThread = new Thread("main", threadNum++);
     currentThread->setStatus(RUNNING);
+    currentThread->SetPriority(149);
 
     stats = new Statistics();                              // collect statistics
     interrupt = new Interrupt();                           // start up interrupt handling
@@ -125,7 +130,6 @@ void Kernel::Initialize() {
 // Kernel::~Kernel
 // 	Nachos is halting.  De-allocate global data structures.
 //----------------------------------------------------------------------
-
 Kernel::~Kernel() {
     delete stats;
     delete interrupt;
@@ -145,9 +149,8 @@ Kernel::~Kernel() {
 
 //----------------------------------------------------------------------
 // Kernel::ThreadSelfTest
-//      Test threads, semaphores, synchlists
+//      Test threads, semaphores, synchLists
 //----------------------------------------------------------------------
-
 void Kernel::ThreadSelfTest() {
     Semaphore *semaphore;
     SynchList<int> *synchList;
@@ -170,9 +173,8 @@ void Kernel::ThreadSelfTest() {
 
 //----------------------------------------------------------------------
 // Kernel::ConsoleTest
-//      Test the synchconsole
+//      Test the synchConsole
 //----------------------------------------------------------------------
-
 void Kernel::ConsoleTest() {
     char ch;
 
@@ -201,7 +203,6 @@ void Kernel::ConsoleTest() {
 //
 //  This test works best if each Nachos machine has its own window
 //----------------------------------------------------------------------
-
 void Kernel::NetworkTest() {
     if (hostName == 0 || hostName == 1) {
         // if we're machine 1, send to 0 and vice versa
@@ -256,43 +257,19 @@ void ForkExecute(Thread *t) {
 
 void Kernel::ExecAll() {
     for (int i = 1; i <= execfileNum; i++) {
-        Exec(execfile[i]);
+        Exec(execfile[i], execfilePriority[i]);
     }
-    currentThread->Finish();
+    currentThread->Finish();  // Terminate the main thread.
 }
 
-int Kernel::Exec(char *name) {
+int Kernel::Exec(char *name, int Priority) {
     t[threadNum] = new Thread(name, threadNum);
     t[threadNum]->space = new AddrSpace();
+    t[threadNum]->SetPriority(Priority);
     t[threadNum]->Fork((VoidFunctionPtr)&ForkExecute, (void *)t[threadNum]);
     threadNum++;
 
     return threadNum - 1;
-    /*
-        cout << "Total threads number is " << execfileNum << endl;
-        for (int n=1;n<=execfileNum;n++) {
-                    t[n] = new Thread(execfile[n]);
-                    t[n]->space = new AddrSpace();
-                    t[n]->Fork((VoidFunctionPtr) &ForkExecute, (void *)t[n]);
-                    cout << "Thread " << execfile[n] << " is executing." << endl;
-            }
-            cout << "debug Kernel::Run finished.\n";
-    */
-    //  Thread *t1 = new Thread(execfile[1]);
-    //  Thread *t1 = new Thread("../test/test1");
-    //  Thread *t2 = new Thread("../test/test2");
-
-    //  AddrSpace *halt = new AddrSpace();
-    //  t1->space = new AddrSpace();
-    //  t2->space = new AddrSpace();
-
-    //  halt->Execute("../test/halt");
-    //  t1->Fork((VoidFunctionPtr) &ForkExecute, (void *)t1);
-    //  t2->Fork((VoidFunctionPtr) &ForkExecute, (void *)t2);
-
-    //	currentThread->Finish();
-    //  Kernel::Run();
-    //  cout << "after ThreadedKernel:Run();" << endl;  // unreachable
 }
 
 //----------------------------------------------------------------------

@@ -32,12 +32,16 @@ class Scheduler {
     void CheckToBeDestroyed();  // Check if thread that had been
                                 // running needs to be deleted
 
+    void AgingThread(int Ticks);
+
     void Print();  // Print contents of ready list
 
     // SelfTest for scheduler is implemented in class Thread
 
    private:
-    List<Thread*>* readyList;  // queue of threads that are ready to run, but not running.
+    SortedList<Thread*>* ReadyList_L1;
+    SortedList<Thread*>* ReadyList_L2;
+    List<Thread*>* ReadyList_L3;
 
     Thread* toBeDestroyed;  // finishing thread
                             // Destroyed by next thread when it runs.

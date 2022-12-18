@@ -45,6 +45,11 @@ Thread::Thread(char *threadName, int threadID) {
                                  // of machine registers
     }
     space = NULL;
+
+    ApproximatedBurstTime = 0;
+    RunningBurstTime = 0;
+    StartTime = 0;
+    Priority = 0;
 }
 
 //----------------------------------------------------------------------
@@ -186,9 +191,9 @@ void Thread::Yield() {
 
     DEBUG(dbgThread, "Yielding thread: " << name);
 
+    kernel->scheduler->ReadyToRun(this);
     nextThread = kernel->scheduler->FindNextToRun();
     if (nextThread != NULL) {
-        kernel->scheduler->ReadyToRun(this);
         kernel->scheduler->Run(nextThread, FALSE);
     }
     (void)kernel->interrupt->SetLevel(oldLevel);
@@ -223,8 +228,15 @@ void Thread::Sleep(bool finishing) {
     DEBUG(dbgThread, "Sleeping thread: " << name);
     DEBUG(dbgTraCode, "In Thread::Sleep, Sleeping thread: " << name << ", " << kernel->stats->totalTicks);
 
+    // Running State -> Waiting State
     status = BLOCKED;
-    // cout << "debug Thread::Sleep " << name << "wait for Idle\n";
+
+    if (ID != 0 && Priority >= 100) {
+        int oldApproximatedBurstTime = ApproximatedBurstTime;
+        ApproximatedBurstTime = 0.5 * RunningBurstTime + 0.5 * oldApproximatedBurstTime;
+        DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << ID << " update approximate burst time, from: " << oldApproximatedBurstTime << ", add " << RunningBurstTime << ", to " << ApproximatedBurstTime);
+    }
+
     while ((nextThread = kernel->scheduler->FindNextToRun()) == NULL) {
         kernel->interrupt->Idle();  // no one to run, wait for an interrupt
     }
@@ -311,7 +323,7 @@ void Thread::StackAllocate(VoidFunctionPtr func, void *arg) {
 
 #ifdef x86
     // the x86 passes the return address on the stack.  In order for SWITCH()
-    // to go to ThreadRoot when we switch to this thread, the return addres
+    // to go to ThreadRoot when we switch to this thread, the return address
     // used in SWITCH() must be the starting address of ThreadRoot.
     stackTop = stack + StackSize - 4;  // -4 to be on the safe side!
     *(--stackTop) = (int)ThreadRoot;
@@ -391,4 +403,126 @@ void Thread::SelfTest() {
     t->Fork((VoidFunctionPtr)SimpleThread, (void *)1);
     kernel->currentThread->Yield();
     SimpleThread(0);
+}
+
+//----------------------------------------------------------------------
+//  Thread::SetPriority
+// 	Set the Priority of this Thread.
+//
+//  Note : The Priority should between 0 and 149.
+//         Higher value means higher priority.
+//
+//  Return Value : Previous Priority of this thread.
+//----------------------------------------------------------------------
+int Thread::SetPriority(int Priority) {
+    int oldPriority = this->Priority;
+
+    // If priority is out of range, abort the program.
+    ASSERT(Priority >= 0 && Priority <= 149);
+
+    this->Priority = Priority;
+    return oldPriority;
+}
+
+//----------------------------------------------------------------------
+//  Thread::GetPriority
+//  Return the current Priority of this thread.
+//----------------------------------------------------------------------
+int Thread::GetPriority() {
+    return this->Priority;
+}
+
+//----------------------------------------------------------------------
+//  Thread::SetApproximatedBurstTime
+// 	Set the Approximated Burst Time of this Thread.
+//
+//  Return Value : Previous Approximated Burst Time of this thread.
+//----------------------------------------------------------------------
+int Thread::SetApproximatedBurstTime(int Burst) {
+    int oldBurst = ApproximatedBurstTime;
+    ApproximatedBurstTime = Burst;
+    return oldBurst;
+}
+
+//----------------------------------------------------------------------
+//  Thread::GetApproximatedBurstTime
+//  Return the current Approximated Burst Time of this thread.
+//----------------------------------------------------------------------
+int Thread::GetApproximatedBurstTime() {
+    return this->ApproximatedBurstTime;
+}
+
+//----------------------------------------------------------------------
+//  Thread::SetRunningBurstTime
+// 	Set the Running Burst Time of this Thread.
+//
+//  Return Value : Previous Running Burst Time of this thread.
+//----------------------------------------------------------------------
+int Thread::SetRunningBurstTime(int Burst) {
+    int oldBurst = RunningBurstTime;
+    RunningBurstTime = Burst;
+    return oldBurst;
+}
+
+//----------------------------------------------------------------------
+//  Thread::GetRunningBurstTime
+//  Return the current Running Burst Time of this thread.
+//----------------------------------------------------------------------
+int Thread::GetRunningBurstTime() {
+    return this->RunningBurstTime;
+}
+
+//----------------------------------------------------------------------
+//  Thread::SetStartTime
+// 	Set the Start Time of this Thread.
+//----------------------------------------------------------------------
+void Thread::SetStartTime(int Time) {
+    this->StartTime = Time;
+}
+
+//----------------------------------------------------------------------
+//  Thread::GetStartTime
+//  Return the Start Time of this thread.
+//----------------------------------------------------------------------
+int Thread::GetStartTime() {
+    return this->StartTime;
+}
+
+void Thread::ResetWaitingTime() {
+    WaitingTime = 0;
+}
+
+bool Thread::IncreaseWaitingTime(int Time) {
+    ASSERT(status == READY);
+
+    WaitingTime += Time;
+
+    if (WaitingTime >= 1500) {
+        WaitingTime -= 1500;
+        if (Priority != 149) {
+            int oldPriority = Priority;
+            Priority = min(oldPriority + 10, 149);
+            DEBUG(dbgTick, "Tick " << kernel->stats->totalTicks << ": Thread " << ID << " changes its priority from " << oldPriority << " to " << Priority);
+            return true;
+        }
+    }
+    return false;
+}
+
+int Thread::GetWaitingTime() {
+    return WaitingTime;
+}
+
+//----------------------------------------------------------------------
+//  Thread::ComparePriority
+//  Compare which Thread has higher Priority.
+//----------------------------------------------------------------------
+int Thread::ComparePriority(Thread *x, Thread *y) {
+    if (x->Priority > y->Priority) {
+        return -1;
+    } else if (x->Priority < y->Priority) {
+        return 1;
+    } else {
+        return 0;
+    }
 }

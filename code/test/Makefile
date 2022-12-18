@@ -113,7 +113,7 @@ PROGRAMS = unknownhost
 else
 # change this if you create a new test program!
 #PROGRAMS = add halt shell matmult sort segments test1 test2 a
-PROGRAMS = add halt createFile fileIO_test1 fileIO_test2 fileIO_test3 LotOfAdd consoleIO_test3
+PROGRAMS = add halt createFile fileIO_test1 fileIO_test2 fileIO_test3 LotOfAdd consoleIO_test3 hw3t1 hw3t2 hw3t3
 endif
 
 all: $(PROGRAMS)
@@ -199,6 +199,21 @@ fileIO_test3: fileIO_test3.o start.o
 	$(LD) $(LDFLAGS) start.o fileIO_test3.o -o fileIO_test3.coff
 	$(COFF2NOFF) fileIO_test3.coff fileIO_test3
 
+hw3t1: hw3t1.c start.o
+	$(CC) $(CFLAGS) -c hw3t1.c
+	$(LD) $(LDFLAGS) start.o hw3t1.o -o hw3t1.coff
+	$(COFF2NOFF) hw3t1.coff hw3t1
+
+hw3t2: hw3t2.c start.o
+	$(CC) $(CFLAGS) -c hw3t2.c
+	$(LD) $(LDFLAGS) start.o hw3t2.o -o hw3t2.coff
+	$(COFF2NOFF) hw3t2.coff hw3t2
+
+hw3t3: hw3t3.c start.o
+	$(CC) $(CFLAGS) -c hw3t3.c
+	$(LD) $(LDFLAGS) start.o hw3t3.o -o hw3t3.coff
+	$(COFF2NOFF) hw3t3.coff hw3t3
+
 createFile.o: createFile.c
 	$(CC) $(CFLAGS) -c createFile.c
 createFile: createFile.o start.o
@@ -218,17 +233,3 @@ unknownhost:
 	@echo make is terminating.
 	@echo If you are on an MFCF machine, contact the instructor to report this problem
 	@echo Otherwise, edit Makefile.dep and try again.
-hw3t1: hw3t1.c start.o
-	$(CC) $(CFLAGS) -c hw3t1.c
-	$(LD) $(LDFLAGS) start.o hw3t1.o -o hw3t1.coff
-	$(COFF2NOFF) hw3t1.coff hw3t1
-
-hw3t2: hw3t2.c start.o
-	$(CC) $(CFLAGS) -c hw3t2.c
-	$(LD) $(LDFLAGS) start.o hw3t2.o -o hw3t2.coff
-	$(COFF2NOFF) hw3t2.coff hw3t2
-
-hw3t3: hw3t3.c start.o
-	$(CC) $(CFLAGS) -c hw3t3.c
-	$(LD) $(LDFLAGS) start.o hw3t3.o -o hw3t3.coff
-	$(COFF2NOFF) hw3t3.coff hw3t3

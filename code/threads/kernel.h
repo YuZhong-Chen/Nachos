@@ -43,19 +43,19 @@ class Kernel {
                         // from constructor because
                         // refers to "kernel" as a global
     void ExecAll();
-    int Exec(char *name);
+    int Exec(char *name, int Priority);
     void ThreadSelfTest();  // self test of threads and synchronization
 
     void ConsoleTest();  // interactive console self test
     void NetworkTest();  // interactive 2-machine network test
     Thread *getThread(int threadID) { return t[threadID]; }
 
-    void PrintInt(int number);
-    int CreateFile(char *filename);                        // fileSystem call
-    OpenFileId OpenFile(char *name);                       // fileSystem call
-    int WriteFile(char *buffer, int size, OpenFileId id);  // fileSystem call
-    int ReadFile(char *buffer, int size, OpenFileId id);   // fileSystem call
-    int CloseFile(OpenFileId id);                          // fileSystem call
+    // void PrintInt(int number);
+    // int CreateFile(char *filename);                        // fileSystem call
+    // OpenFileId OpenFile(char *name);                       // fileSystem call
+    // int WriteFile(char *buffer, int size, OpenFileId id);  // fileSystem call
+    // int ReadFile(char *buffer, int size, OpenFileId id);   // fileSystem call
+    // int CloseFile(OpenFileId id);                          // fileSystem call
 
     int FindUnusedPhysicPage();   // Find the unused physic page to store the data.
     bool FreePhysicPage(int id);  // Release the Physic Page.
@@ -81,6 +81,7 @@ class Kernel {
    private:
     Thread *t[10];
     char *execfile[10];
+    int execfilePriority[10];
     int execfileNum;
     int threadNum;
     bool randomSlice;    // enable pseudo-random time slicing
