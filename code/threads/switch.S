@@ -367,7 +367,7 @@ SWITCH:
         movl    _EBP(%eax),%ebp
         movl    _ESP(%eax),%esp         # restore stack pointer
         movl    _PC(%eax),%eax          # restore return address into eax
-        movl    %eax,4(%esp)            # copy over the ret address on the stack
+        movl    %eax,0(%esp)            # copy over the ret address on the stack
         movl    _eax_save,%eax
 
         ret

@@ -50,46 +50,6 @@ Halt:
 	j	$31
 	.end Halt
 
-    .globl  Open
-	.ent    Open
-Open:
-	addiu $2,$0,SC_Open
-	syscall
-	j	$31
-	.end Open
-
-    .globl  Close
-	.ent    Close
-Close:
-	addiu $2,$0,SC_Close
-	syscall
-	j	$31
-	.end Close
-
-    .globl  Read
-	.ent    Read
-Read:
-	addiu $2,$0,SC_Read
-	syscall
-	j	$31
-	.end Read
-
-    .globl  Write
-	.ent    Write
-Write:
-	addiu $2,$0,SC_Write
-	syscall
-	j	$31
-	.end Write
-
-    .globl  PrintInt
-    .ent     PrintInt
-PrintInt:
-    addiu $2,$0,SC_PrintInt
-    syscall
-    j   $31
-    .end PrintInt
-
 	.globl MSG
 	.ent   MSG
 MSG:
@@ -154,6 +114,38 @@ Remove:
 	j	$31
 	.end Remove
 
+	.globl Open
+	.ent	Open
+Open:
+	addiu $2,$0,SC_Open
+	syscall
+	j	$31
+	.end Open
+
+	.globl Read
+	.ent	Read
+Read:
+	addiu $2,$0,SC_Read
+	syscall
+	j	$31
+	.end Read
+
+	.globl Write
+	.ent	Write
+Write:
+	addiu $2,$0,SC_Write
+	syscall
+	j	$31
+	.end Write
+
+	.globl Close
+	.ent	Close
+Close:
+	addiu $2,$0,SC_Close
+	syscall
+	j	$31
+	.end Close
+
 	.globl Seek
 	.ent	Seek
 Seek:
@@ -162,21 +154,21 @@ Seek:
 	j	$31
 	.end Seek
 
-    .globl ThreadFork
-    .ent    ThreadFork
+        .globl ThreadFork
+        .ent    ThreadFork
 ThreadFork:
-    addiu $2,$0,SC_ThreadFork
-    syscall
-    j   $31
-    .end ThreadFork
+        addiu $2,$0,SC_ThreadFork
+        syscall
+        j       $31
+        .end ThreadFork
 
-    .globl ThreadYield
-    .ent    ThreadYield
+        .globl ThreadYield
+        .ent    ThreadYield
 ThreadYield:
-    addiu $2,$0,SC_ThreadYield
-    syscall
-    j   $31
-    .end ThreadYield
+        addiu $2,$0,SC_ThreadYield
+        syscall
+        j       $31
+        .end ThreadYield
 
 	.globl ThreadExit
 	.ent    ThreadExit

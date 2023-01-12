@@ -34,108 +34,78 @@
 #define FS_H
 
 #include "copyright.h"
-#include "debug.h"  //just for test!!!
-#include "openfile.h"
 #include "sysdep.h"
+#include "openfile.h"
 
-#ifdef FILESYS_STUB  // Temporarily implement file system calls as
-                     // calls to UNIX, until the real file system
-                     // implementation is available
 typedef int OpenFileId;
 
-class FileSystem {
-   public:
-    FileSystem() {
-        for (int i = 0; i < 20; i++)
-            OpenFileTable[i] = NULL;
-    }
+#ifdef FILESYS_STUB // Temporarily implement file system calls as
+// calls to UNIX, until the real file system
+// implementation is available
+class FileSystem
+{
+public:
+	FileSystem()
+	{
+		for (int i = 0; i < 20; i++)
+			fileDescriptorTable[i] = NULL;
+	}
 
-    bool Create(char *name) {
-        int fileDescriptor = OpenForWrite(name);
-        if (fileDescriptor == -1) return FALSE;
-        Close(fileDescriptor);
-        return TRUE;
-    }
+	bool Create(char *name)
+	{
+		int fileDescriptor = OpenForWrite(name);
 
-    // The OpenFile function is used for open user program  [userprog/addrspace.cc]
-    OpenFile *Open(char *name) {
-        int fileDescriptor = OpenForReadWrite(name, FALSE);
-        if (fileDescriptor == -1) return NULL;
-        return new OpenFile(fileDescriptor);
-    }
+		if (fileDescriptor == -1)
+			return FALSE;
+		Close(fileDescriptor);
+		return TRUE;
+	}
 
-    //  Open a file with the name, and return its corresponding OpenFileId.
-    OpenFileId OpenAFile(char *name) {
-        OpenFile *File = Open(name);
-        if (File == NULL)  // Fail to open the file.
-            return -1;
-        OpenFileId id = -1;  // if exceeding the opened file limit, return -1.
-        for (int i = 0; i < 20; i++) {
-            if (OpenFileTable[i] == NULL) {
-                OpenFileTable[i] = File;
-                id = i;
-                break;
-            }
-        }
-        return id;
-    }
+	OpenFile *Open(char *name)
+	{
+		int fileDescriptor = OpenForReadWrite(name, FALSE);
 
-    int WriteFile(char *buffer, int size, OpenFileId id) {
-        if ((id < 0 || id >= 20) || OpenFileTable[id] == NULL)  // Invalid FileId.
-            return -1;
-        return OpenFileTable[id]->Write(buffer, size);
-    }
+		if (fileDescriptor == -1)
+			return NULL;
+		return new OpenFile(fileDescriptor);
+	}
 
-    int ReadFile(char *buffer, int size, OpenFileId id) {
-        if ((id < 0 || id >= 20) || OpenFileTable[id] == NULL)  // Invalid FileId.
-            return -1;
-        return OpenFileTable[id]->Read(buffer, size);
-    }
+	bool Remove(char *name) { return Unlink(name) == 0; }
 
-    // Close the file with id.
-    int CloseFile(OpenFileId id) {
-        if ((id < 0 || id >= 20) || OpenFileTable[id] == NULL)  // Invalid FileId.
-            return -1;
-        delete OpenFileTable[id];
-        OpenFileTable[id] = NULL;
-        return 1;
-    }
-
-    bool Remove(char *name) {
-        return Unlink(name) == 0;
-    }
-
-    OpenFile *OpenFileTable[20];
+	OpenFile *fileDescriptorTable[20];
 };
 
-#else  // FILESYS
-class FileSystem {
-   public:
-    FileSystem(bool format);  // Initialize the file system.
-                              // Must be called *after* "synchDisk"
-                              // has been initialized.
-                              // If "format", there is nothing on
-                              // the disk, so initialize the directory
-                              // and the bitmap of free blocks.
+#else // FILESYS
+class FileSystem
+{
+public:
+	FileSystem(bool format); // Initialize the file system.
+							 // Must be called *after* "synchDisk"
+							 // has been initialized.
+							 // If "format", there is nothing on
+							 // the disk, so initialize the directory
+							 // and the bitmap of free blocks.
+	// MP4 mod tag
+	~FileSystem();
 
-    bool Create(char* name, int initialSize);
-    // Create a file (UNIX creat)
+	bool Create(char *name, int initialSize);
+	// Create a file (UNIX creat)
 
-    OpenFile* Open(char* name);  // Open a file (UNIX open)
+	OpenFile *Open(char *name); // Open a file (UNIX open)
 
-    bool Remove(char* name);  // Delete a file (UNIX unlink)
+	bool Remove(char *name); // Delete a file (UNIX unlink)
 
-    void List();  // List all the files in the file system
+	void List(); // List all the files in the file system
 
-    void Print();  // List all the files and their contents
+	void Print(); // List all the files and their contents
 
-   private:
-    OpenFile* freeMapFile;    // Bit map of free disk blocks,
-                              // represented as a file
-    OpenFile* directoryFile;  // "Root" directory -- list of
-                              // file names, represented as a file
+private:
+	OpenFile *freeMapFile;	 // Bit map of free disk blocks,
+							 // represented as a file
+	OpenFile *directoryFile; // "Root" directory -- list of
+							 // file names, represented as a file
 };
 
-#endif  // FILESYS
+#endif // FILESYS
 
-#endif  // FS_H
+#endif // FS_H

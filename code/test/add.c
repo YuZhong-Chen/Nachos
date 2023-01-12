@@ -6,6 +6,7 @@
  */
 
 #include "syscall.h"
+
 int
 main()
 {
@@ -13,7 +14,7 @@ main()
   
   result = Add(42, 23);
   PrintInt(result);
-  MSG("add~~~~");
+//  printf("result is %d\n", result);
   Halt();
   /* not reached */
 }

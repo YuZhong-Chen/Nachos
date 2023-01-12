@@ -75,7 +75,6 @@ Semaphore::~Semaphore()
 void
 Semaphore::P()
 {
-	DEBUG(dbgTraCode, "In Semaphore::P(), " << kernel->stats->totalTicks);
     Interrupt *interrupt = kernel->interrupt;
     Thread *currentThread = kernel->currentThread;
     
@@ -103,7 +102,6 @@ Semaphore::P()
 void
 Semaphore::V()
 {
-	DEBUG(dbgTraCode, "In Semaphore::V(), " << kernel->stats->totalTicks);
     Interrupt *interrupt = kernel->interrupt;
     
     // disable interrupts

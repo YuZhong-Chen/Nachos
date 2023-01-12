@@ -363,8 +363,7 @@ ReadPartial(int fd, char *buffer, int nBytes)
 void
 WriteFile(int fd, char *buffer, int nBytes)
 {
-    //printf("In sysdep.cc, nBytes: %d\n", nBytes);
-	int retVal = write(fd, buffer, nBytes);
+    int retVal = write(fd, buffer, nBytes);
     ASSERT(retVal == nBytes);
 }
 

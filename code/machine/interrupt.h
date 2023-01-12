@@ -55,8 +55,6 @@ enum IntType { TimerInt, DiskInt, ConsoleWriteInt, ConsoleReadInt,
 // to occur in the future.  The internal data structures are
 // left public to make it simpler to manipulate.
 
-typedef int OpenFileId;
-
 class PendingInterrupt {
   public:
     PendingInterrupt(CallBackObj *callOnInt, int time, IntType kind);
@@ -96,14 +94,11 @@ class Interrupt {
 
     void Halt(); 		// quit and print out stats
 
-    void PrintInt(int number); // print int
-    
-    int CreateFile(char *filename);
-    OpenFileId OpenFile(char *name);
-    int WriteFile(char *buffer, int size, OpenFileId id);
-    int ReadFile(char *buffer, int size, OpenFileId id);
-    int CloseFile(OpenFileId id);
- 
+    void PrintInt(int number);
+	#ifdef FILESYS_STUB
+	int CreateFile(char *filename);
+	#endif 
+
     void YieldOnReturn();	// cause a context switch on return 
 				// from an interrupt handler
 

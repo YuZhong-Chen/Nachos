@@ -106,14 +106,15 @@ AS = $(GCCDIR)as
 LD = $(GCCDIR)ld
 
 INCDIR =-I../userprog -I../lib
-CFLAGS = -g -G 0 -c $(INCDIR) -B/usr/bin/local/nachos/lib/gcc-lib/decstation-ultrix/2.95.2/ -B/usr/bin/local/nachos/decstation-ultrix/bin/
+CFLAGS = -G 0 -c $(INCDIR) -B/usr/bin/local/nachos/lib/gcc-lib/decstation-ultrix/2.95.2/ -B/usr/bin/local/nachos/decstation-ultrix/bin/
 
 ifeq ($(hosttype),unknown)
 PROGRAMS = unknownhost
 else
 # change this if you create a new test program!
 #PROGRAMS = add halt shell matmult sort segments test1 test2 a
-PROGRAMS = add halt createFile fileIO_test1 fileIO_test2 fileIO_test3 LotOfAdd consoleIO_test3 hw3t1 hw3t2 hw3t3
+#PROGRAMS = add halt consoleIO_test1 consoleIO_test2 fileIO_test1 fileIO_test2
+PROGRAMS = FS_test1 FS_test2
 endif
 
 all: $(PROGRAMS)
@@ -129,15 +130,10 @@ halt: halt.o start.o
 
 add.o: add.c
 	$(CC) $(CFLAGS) -c add.c
+
 add: add.o start.o
 	$(LD) $(LDFLAGS) start.o add.o -o add.coff
 	$(COFF2NOFF) add.coff add
-
-LotOfAdd.o: LotOfAdd.c
-	$(CC) $(CFLAGS) -c LotOfAdd.c
-LotOfAdd: LotOfAdd.o start.o
-	$(LD) $(LDFLAGS) start.o LotOfAdd.o -o LotOfAdd.coff
-	$(COFF2NOFF) LotOfAdd.coff LotOfAdd
 
 shell.o: shell.c
 	$(CC) $(CFLAGS) -c shell.c
@@ -174,51 +170,19 @@ consoleIO_test2.o: consoleIO_test2.c
 consoleIO_test2: consoleIO_test2.o start.o
 	$(LD) $(LDFLAGS) start.o consoleIO_test2.o -o consoleIO_test2.coff
 	$(COFF2NOFF) consoleIO_test2.coff consoleIO_test2
-	
-consoleIO_test3.o: consoleIO_test3.c
-	$(CC) $(CFLAGS) -c consoleIO_test3.c
-consoleIO_test3: consoleIO_test3.o start.o
-	$(LD) $(LDFLAGS) start.o consoleIO_test3.o -o consoleIO_test3.coff
-	$(COFF2NOFF) consoleIO_test3.coff consoleIO_test3
 
-fileIO_test1.o: fileIO_test1.c
-	$(CC) $(CFLAGS) -c fileIO_test1.c
-fileIO_test1: fileIO_test1.o start.o
-	$(LD) $(LDFLAGS) start.o fileIO_test1.o -o fileIO_test1.coff
-	$(COFF2NOFF) fileIO_test1.coff fileIO_test1
-	
-fileIO_test2.o: fileIO_test2.c
-	$(CC) $(CFLAGS) -c fileIO_test2.c
-fileIO_test2: fileIO_test2.o start.o
-	$(LD) $(LDFLAGS) start.o fileIO_test2.o -o fileIO_test2.coff
-	$(COFF2NOFF) fileIO_test2.coff fileIO_test2
+FS_test1.o: FS_test1.c
+	$(CC) $(CFLAGS) -c FS_test1.c
+FS_test1: FS_test1.o start.o
+	$(LD) $(LDFLAGS) start.o FS_test1.o -o FS_test1.coff
+	$(COFF2NOFF) FS_test1.coff FS_test1
 
-fileIO_test3.o: fileIO_test3.c
-	$(CC) $(CFLAGS) -c fileIO_test3.c
-fileIO_test3: fileIO_test3.o start.o
-	$(LD) $(LDFLAGS) start.o fileIO_test3.o -o fileIO_test3.coff
-	$(COFF2NOFF) fileIO_test3.coff fileIO_test3
+FS_test2.o: FS_test2.c
+	$(CC) $(CFLAGS) -c FS_test2.c
+FS_test2: FS_test2.o start.o
+	$(LD) $(LDFLAGS) start.o FS_test2.o -o FS_test2.coff
+	$(COFF2NOFF) FS_test2.coff FS_test2
 
-hw3t1: hw3t1.c start.o
-	$(CC) $(CFLAGS) -c hw3t1.c
-	$(LD) $(LDFLAGS) start.o hw3t1.o -o hw3t1.coff
-	$(COFF2NOFF) hw3t1.coff hw3t1
-
-hw3t2: hw3t2.c start.o
-	$(CC) $(CFLAGS) -c hw3t2.c
-	$(LD) $(LDFLAGS) start.o hw3t2.o -o hw3t2.coff
-	$(COFF2NOFF) hw3t2.coff hw3t2
-
-hw3t3: hw3t3.c start.o
-	$(CC) $(CFLAGS) -c hw3t3.c
-	$(LD) $(LDFLAGS) start.o hw3t3.o -o hw3t3.coff
-	$(COFF2NOFF) hw3t3.coff hw3t3
-
-createFile.o: createFile.c
-	$(CC) $(CFLAGS) -c createFile.c
-createFile: createFile.o start.o
-	$(LD) $(LDFLAGS) start.o createFile.o -o createFile.coff
-	$(COFF2NOFF) createFile.coff createFile
 
 
 clean:
