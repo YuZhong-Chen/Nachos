@@ -16,7 +16,7 @@
 //      Both the bitmap and the directory are represented as normal
 //	files.  Their file headers are located in specific sectors
 //	(sector 0 and sector 1), so that the file system can find them
-//	on bootup.
+//	on boot-up.
 //
 //	The file system assumes that the bitmap and directory files are
 //	kept "open" continuously while Nachos is running.
@@ -44,13 +44,14 @@
 // of liability and disclaimer of warranty provisions.
 #ifndef FILESYS_STUB
 
+#include "filesys.h"
+
 #include "copyright.h"
 #include "debug.h"
-#include "disk.h"
-#include "pbitmap.h"
 #include "directory.h"
+#include "disk.h"
 #include "filehdr.h"
-#include "filesys.h"
+#include "pbitmap.h"
 
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known
@@ -78,11 +79,9 @@
 //	"format" -- should we initialize the disk?
 //----------------------------------------------------------------------
 
-FileSystem::FileSystem(bool format)
-{
+FileSystem::FileSystem(bool format) {
     DEBUG(dbgFile, "Initializing the file system.");
-    if (format)
-    {
+    if (format) {
         PersistentBitmap *freeMap = new PersistentBitmap(NumSectors);
         Directory *directory = new Directory(NumDirEntries);
         FileHeader *mapHdr = new FileHeader;
@@ -124,11 +123,10 @@ FileSystem::FileSystem(bool format)
         // to hold the file data for the directory and bitmap.
 
         DEBUG(dbgFile, "Writing bitmap and directory back to disk.");
-        freeMap->WriteBack(freeMapFile); // flush changes to disk
+        freeMap->WriteBack(freeMapFile);  // flush changes to disk
         directory->WriteBack(directoryFile);
 
-        if (debug->IsEnabled('f'))
-        {
+        if (debug->IsEnabled('f')) {
             freeMap->Print();
             directory->Print();
         }
@@ -136,9 +134,7 @@ FileSystem::FileSystem(bool format)
         delete directory;
         delete mapHdr;
         delete dirHdr;
-    }
-    else
-    {
+    } else {
         // if we are not formatting the disk, just open the files representing
         // the bitmap and directory; these are left open while Nachos is running
         freeMapFile = new OpenFile(FreeMapSector);
@@ -150,8 +146,7 @@ FileSystem::FileSystem(bool format)
 // MP4 mod tag
 // FileSystem::~FileSystem
 //----------------------------------------------------------------------
-FileSystem::~FileSystem()
-{
+FileSystem::~FileSystem() {
     delete freeMapFile;
     delete directoryFile;
 }
@@ -185,8 +180,7 @@ FileSystem::~FileSystem()
 //	"initialSize" -- size of file to be created
 //----------------------------------------------------------------------
 
-bool FileSystem::Create(char *name, int initialSize)
-{
+bool FileSystem::Create(char *name, int initialSize) {
     Directory *directory;
     PersistentBitmap *freeMap;
     FileHeader *hdr;
@@ -199,24 +193,21 @@ bool FileSystem::Create(char *name, int initialSize)
     directory->FetchFrom(directoryFile);
 
     if (directory->Find(name) != -1)
-        success = FALSE; // file is already in directory
-    else
-    {
+        success = FALSE;  // file is already in directory
+    else {
         freeMap = new PersistentBitmap(freeMapFile, NumSectors);
-        sector = freeMap->FindAndSet(); // find a sector to hold the file header
+        sector = freeMap->FindAndSet();  // find a sector to hold the file header
         if (sector == -1)
-            success = FALSE; // no free block for file header
+            success = FALSE;  // no free block for file header
         else if (!directory->Add(name, sector))
-            success = FALSE; // no space in directory
-        else
-        {
+            success = FALSE;  // no space in directory
+        else {
             hdr = new FileHeader;
             if (!hdr->Allocate(freeMap, initialSize))
-                success = FALSE; // no space on disk for data
-            else
-            {
+                success = FALSE;  // no space on disk for data
+            else {
                 success = TRUE;
-                // everthing worked, flush all changes back to disk
+                // everything worked, flush all changes back to disk
                 hdr->WriteBack(sector);
                 directory->WriteBack(directoryFile);
                 freeMap->WriteBack(freeMapFile);
@@ -239,8 +230,7 @@ bool FileSystem::Create(char *name, int initialSize)
 //	"name" -- the text name of the file to be opened
 //----------------------------------------------------------------------
 
-OpenFile * FileSystem::Open(char *name)
-{
+OpenFile *FileSystem::Open(char *name) {
     Directory *directory = new Directory(NumDirEntries);
     OpenFile *openFile = NULL;
     int sector;
@@ -249,9 +239,9 @@ OpenFile * FileSystem::Open(char *name)
     directory->FetchFrom(directoryFile);
     sector = directory->Find(name);
     if (sector >= 0)
-        openFile = new OpenFile(sector); // name was found in directory
+        openFile = new OpenFile(sector);  // name was found in directory
     delete directory;
-    return openFile; // return NULL if not found
+    return openFile;  // return NULL if not found
 }
 
 //----------------------------------------------------------------------
@@ -268,8 +258,7 @@ OpenFile * FileSystem::Open(char *name)
 //	"name" -- the text name of the file to be removed
 //----------------------------------------------------------------------
 
-bool FileSystem::Remove(char *name)
-{
+bool FileSystem::Remove(char *name) {
     Directory *directory;
     PersistentBitmap *freeMap;
     FileHeader *fileHdr;
@@ -278,22 +267,21 @@ bool FileSystem::Remove(char *name)
     directory = new Directory(NumDirEntries);
     directory->FetchFrom(directoryFile);
     sector = directory->Find(name);
-    if (sector == -1)
-    {
+    if (sector == -1) {
         delete directory;
-        return FALSE; // file not found
+        return FALSE;  // file not found
     }
     fileHdr = new FileHeader;
     fileHdr->FetchFrom(sector);
 
     freeMap = new PersistentBitmap(freeMapFile, NumSectors);
 
-    fileHdr->Deallocate(freeMap); // remove data blocks
-    freeMap->Clear(sector);       // remove header block
+    fileHdr->Deallocate(freeMap);  // remove data blocks
+    freeMap->Clear(sector);        // remove header block
     directory->Remove(name);
 
-    freeMap->WriteBack(freeMapFile);     // flush to disk
-    directory->WriteBack(directoryFile); // flush to disk
+    freeMap->WriteBack(freeMapFile);      // flush to disk
+    directory->WriteBack(directoryFile);  // flush to disk
     delete fileHdr;
     delete directory;
     delete freeMap;
@@ -305,8 +293,7 @@ bool FileSystem::Remove(char *name)
 // 	List all the files in the file system directory.
 //----------------------------------------------------------------------
 
-void FileSystem::List()
-{
+void FileSystem::List() {
     Directory *directory = new Directory(NumDirEntries);
 
     directory->FetchFrom(directoryFile);
@@ -324,8 +311,7 @@ void FileSystem::List()
 //	      the data in the file
 //----------------------------------------------------------------------
 
-void FileSystem::Print()
-{
+void FileSystem::Print() {
     FileHeader *bitHdr = new FileHeader;
     FileHeader *dirHdr = new FileHeader;
     PersistentBitmap *freeMap = new PersistentBitmap(freeMapFile, NumSectors);
@@ -350,4 +336,4 @@ void FileSystem::Print()
     delete directory;
 }
 
-#endif // FILESYS_STUB
+#endif  // FILESYS_STUB
