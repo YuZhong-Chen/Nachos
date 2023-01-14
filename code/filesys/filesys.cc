@@ -140,6 +140,8 @@ FileSystem::FileSystem(bool format) {
         freeMapFile = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
     }
+
+    OpenFileTable[0] = NULL;
 }
 
 //----------------------------------------------------------------------
@@ -149,6 +151,7 @@ FileSystem::FileSystem(bool format) {
 FileSystem::~FileSystem() {
     delete freeMapFile;
     delete directoryFile;
+    delete OpenFileTable[0];
 }
 
 //----------------------------------------------------------------------
@@ -179,7 +182,6 @@ FileSystem::~FileSystem() {
 //	"name" -- name of file to be created
 //	"initialSize" -- size of file to be created
 //----------------------------------------------------------------------
-
 bool FileSystem::Create(char *name, int initialSize) {
     Directory *directory;
     PersistentBitmap *freeMap;
@@ -229,7 +231,6 @@ bool FileSystem::Create(char *name, int initialSize) {
 //
 //	"name" -- the text name of the file to be opened
 //----------------------------------------------------------------------
-
 OpenFile *FileSystem::Open(char *name) {
     Directory *directory = new Directory(NumDirEntries);
     OpenFile *openFile = NULL;
@@ -241,7 +242,23 @@ OpenFile *FileSystem::Open(char *name) {
     if (sector >= 0)
         openFile = new OpenFile(sector);  // name was found in directory
     delete directory;
+
+    OpenFileTable[0] = openFile;
     return openFile;  // return NULL if not found
+}
+
+int FileSystem::Read(char *buf, int size, OpenFileId id) {
+    return OpenFileTable[id]->Read(buf, size);
+}
+
+int FileSystem::Write(char *buf, int size, OpenFileId id) {
+    return OpenFileTable[id]->Write(buf, size);
+}
+
+int FileSystem::Close(OpenFileId id) {
+    delete OpenFileTable[0];
+    OpenFileTable[0] = NULL;
+    return 1;
 }
 
 //----------------------------------------------------------------------
@@ -257,7 +274,6 @@ OpenFile *FileSystem::Open(char *name) {
 //
 //	"name" -- the text name of the file to be removed
 //----------------------------------------------------------------------
-
 bool FileSystem::Remove(char *name) {
     Directory *directory;
     PersistentBitmap *freeMap;
@@ -282,9 +298,11 @@ bool FileSystem::Remove(char *name) {
 
     freeMap->WriteBack(freeMapFile);      // flush to disk
     directory->WriteBack(directoryFile);  // flush to disk
+
     delete fileHdr;
     delete directory;
     delete freeMap;
+    delete OpenFileTable[0];
     return TRUE;
 }
 
