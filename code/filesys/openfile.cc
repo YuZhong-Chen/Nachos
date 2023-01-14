@@ -166,8 +166,7 @@ int OpenFile::WriteAt(char *from, int numBytes, int position) {
 
     // write modified sectors back
     for (i = firstSector; i <= lastSector; i++)
-        kernel->synchDisk->WriteSector(hdr->ByteToSector(i * SectorSize),
-                                       &buf[(i - firstSector) * SectorSize]);
+        kernel->synchDisk->WriteSector(hdr->ByteToSector(i * SectorSize), &buf[(i - firstSector) * SectorSize]);
     delete[] buf;
     return numBytes;
 }

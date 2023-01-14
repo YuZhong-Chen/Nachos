@@ -17,7 +17,9 @@
 #include "disk.h"
 #include "pbitmap.h"
 
-#define NumDirect ((SectorSize - 2 * sizeof(int)) / sizeof(int))
+#define NumSectorForBlock (SectorSize / sizeof(int))
+#define NumIndirect 8
+#define NumDirect (((SectorSize / sizeof(int)) - 2) - NumIndirect)
 #define MaxFileSize (NumDirect * SectorSize)
 
 // The following class defines the Nachos "file header" (in UNIX terms,
@@ -35,52 +37,57 @@
 // by allocating blocks for the file (if it is a new file), or by
 // reading it from disk.
 
-class FileHeader
-{
-public:
-	// MP4 mod tag
-	FileHeader(); // dummy constructor to keep valgrind happy
-	~FileHeader();
+class FileHeader {
+   public:
+    // MP4 mod tag
+    FileHeader();  // dummy constructor to keep valgrind happy
+    ~FileHeader();
 
-	bool Allocate(PersistentBitmap *bitMap, int fileSize); // Initialize a file header,
-														   //  including allocating space
-														   //  on disk for the file data
-	void Deallocate(PersistentBitmap *bitMap);			   // De-allocate this file's
-														   //  data blocks
+    bool Allocate(PersistentBitmap *bitMap, int fileSize);  // Initialize a file header,
+                                                            //  including allocating space
+                                                            //  on disk for the file data
+    void Deallocate(PersistentBitmap *bitMap);              // De-allocate this file's
+                                                            //  data blocks
 
-	void FetchFrom(int sectorNumber); // Initialize file header from disk
-	void WriteBack(int sectorNumber); // Write modifications to file header
-									  //  back to disk
+    void FetchFrom(int sectorNumber);  // Initialize file header from disk
+    void WriteBack(int sectorNumber);  // Write modifications to file header
+                                       //  back to disk
 
-	int ByteToSector(int offset); // Convert a byte offset into the file
-								  // to the disk sector containing
-								  // the byte
+    int ByteToSector(int offset);  // Convert a byte offset into the file
+                                   // to the disk sector containing
+                                   // the byte
 
-	int FileLength(); // Return the length of the file
-					  // in bytes
+    int FileLength();  // Return the length of the file
+                       // in bytes
 
-	void Print(); // Print the contents of the file.
+    void Print();  // Print the contents of the file.
 
-private:
-	/*
-		MP4 hint:
-		You will need a data structure to store more information in a header.
-		Fields in a class can be separated into disk part and in-core part.
-		Disk part are data that will be written into disk.
-		In-core part are data only lies in memory, and are used to maintain the data structure of this class.
-		In order to implement a data structure, you will need to add some "in-core" data
-		to maintain data structure.
-		
-		Disk Part - numBytes, numSectors, dataSectors occupy exactly 128 bytes and will be
-		written to a sector on disk.
-		In-core part - none
-		
-	*/
+   private:
+    /*
+            MP4 hint:
+            You will need a data structure to store more information in a header.
+            Fields in a class can be separated into disk part and in-core part.
+            Disk part are data that will be written into disk.
+            In-core part are data only lies in memory, and are used to maintain the data structure of this class.
+            In order to implement a data structure, you will need to add some "in-core" data
+            to maintain data structure.
 
-	int numBytes;				// Number of bytes in the file
-	int numSectors;				// Number of data sectors in the file
-	int dataSectors[NumDirect]; // Disk sector numbers for each data
-								// block in the file
+            Disk Part - numBytes, numSectors, dataSectors occupy exactly 128 bytes and will be
+            written to a sector on disk.
+            In-core part - none
+
+    */
+    // NOTE: Don't change the order of variables below.
+
+    // Disk part
+    int numBytes;                      // Number of total bytes in the file
+    int numSectors;                    // Number of total data sectors in the file
+    int DirectSectors[NumDirect];      // Disk sector numbers for each data block in the file
+    int IndirectSectors[NumIndirect];  // Indirect dick sector numbers for each sector.
+
+    // In-core part
+    int numDirectSectors;
+    int numIndirectSectors;
 };
 
-#endif // FILEHDR_H
+#endif  // FILEHDR_H

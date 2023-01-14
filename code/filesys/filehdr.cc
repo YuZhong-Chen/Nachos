@@ -39,7 +39,10 @@
 FileHeader::FileHeader() {
     numBytes = -1;
     numSectors = -1;
-    memset(dataSectors, -1, sizeof(dataSectors));
+    numDirectSectors = -1;
+    numIndirectSectors = -1;
+    memset(DirectSectors, -1, sizeof(DirectSectors));
+    memset(IndirectSectors, -1, sizeof(IndirectSectors));
 }
 
 //----------------------------------------------------------------------
@@ -50,7 +53,6 @@ FileHeader::FileHeader() {
 //	Always remember to deallocate their space or you will leak memory
 //----------------------------------------------------------------------
 FileHeader::~FileHeader() {
-    // nothing to do now
 }
 
 //----------------------------------------------------------------------
@@ -67,16 +69,40 @@ FileHeader::~FileHeader() {
 bool FileHeader::Allocate(PersistentBitmap *freeMap, int fileSize) {
     numBytes = fileSize;
     numSectors = divRoundUp(fileSize, SectorSize);
-    if (freeMap->NumClear() < numSectors)
-        return FALSE;  // not enough space
+    if (freeMap->NumClear() < numSectors) {
+        return false;  // not enough space
+    }
 
-    for (int i = 0; i < numSectors; i++) {
-        dataSectors[i] = freeMap->FindAndSet();
+    if (numSectors > NumDirect) {
+        numDirectSectors = NumDirect;
+        numIndirectSectors = divRoundUp(numSectors - numDirectSectors, NumSectorForBlock);
+    } else {
+        numDirectSectors = numSectors;
+        numIndirectSectors = 0;
+    }
+
+    // Direct sector part
+    for (int i = 0; i < numDirectSectors; i++) {
+        DirectSectors[i] = freeMap->FindAndSet();
         // since we checked that there was enough free space,
         // we expect this to succeed
-        ASSERT(dataSectors[i] >= 0);
+        ASSERT(DirectSectors[i] >= 0);
     }
-    return TRUE;
+
+    // Indirect sector part
+    for (int i = 0; i < numIndirectSectors; i++) {
+        IndirectSectors[i] = freeMap->FindAndSet();
+        ASSERT(IndirectSectors[i] >= 0);
+
+        int SectorForIndirect[NumSectorForBlock];
+        for (int j = 0; j < NumSectorForBlock; j++) {
+            SectorForIndirect[j] = freeMap->FindAndSet();
+            ASSERT(SectorForIndirect[j] >= 0);
+        }
+        kernel->synchDisk->WriteSector(IndirectSectors[i], (char *)SectorForIndirect);
+    }
+
+    return true;
 }
 
 //----------------------------------------------------------------------
@@ -85,11 +111,25 @@ bool FileHeader::Allocate(PersistentBitmap *freeMap, int fileSize) {
 //
 //	"freeMap" is the bit map of free disk sectors
 //----------------------------------------------------------------------
-
 void FileHeader::Deallocate(PersistentBitmap *freeMap) {
-    for (int i = 0; i < numSectors; i++) {
-        ASSERT(freeMap->Test((int)dataSectors[i]));  // ought to be marked!
-        freeMap->Clear((int)dataSectors[i]);
+    // Direct sector part
+    for (int i = 0; i < numDirectSectors; i++) {
+        ASSERT(freeMap->Test(DirectSectors[i]));  // ought to be marked!
+        freeMap->Clear(DirectSectors[i]);
+    }
+
+    // Indirect sector part
+    for (int i = 0; i < numIndirectSectors; i++) {
+        ASSERT(freeMap->Test(IndirectSectors[i]));  // Should not be marked as -1 if the sector is occupied.
+
+        int SectorForIndirect[NumSectorForBlock];
+        kernel->synchDisk->ReadSector(IndirectSectors[i], (char *)SectorForIndirect);
+        for (int j = 0; j < NumSectorForBlock; j++) {
+            ASSERT(freeMap->Test(SectorForIndirect[j]));
+            freeMap->Clear(SectorForIndirect[j]);
+        }
+
+        freeMap->Clear(IndirectSectors[i]);
     }
 }
 
@@ -99,14 +139,16 @@ void FileHeader::Deallocate(PersistentBitmap *freeMap) {
 //
 //	"sector" is the disk sector containing the file header
 //----------------------------------------------------------------------
-
 void FileHeader::FetchFrom(int sector) {
     kernel->synchDisk->ReadSector(sector, (char *)this);
 
-    /*
-            MP4 Hint:
-            After you add some in-core informations, you will need to rebuild the header's structure
-    */
+    for (numIndirectSectors = 0; numIndirectSectors < NumIndirect; numIndirectSectors++) {
+        if (IndirectSectors[numIndirectSectors] == -1) {
+            break;
+        }
+    }
+
+    numDirectSectors = (numIndirectSectors != 0) ? NumDirect : numSectors;
 }
 
 //----------------------------------------------------------------------
@@ -115,7 +157,6 @@ void FileHeader::FetchFrom(int sector) {
 //
 //	"sector" is the disk sector to contain the file header
 //----------------------------------------------------------------------
-
 void FileHeader::WriteBack(int sector) {
     kernel->synchDisk->WriteSector(sector, (char *)this);
 
@@ -138,16 +179,25 @@ void FileHeader::WriteBack(int sector) {
 //
 //	"offset" is the location within the file of the byte in question
 //----------------------------------------------------------------------
-
 int FileHeader::ByteToSector(int offset) {
-    return (dataSectors[offset / SectorSize]);
+    int SectorID;
+
+    if (offset < SectorSize * numDirectSectors) {
+        SectorID = DirectSectors[offset / SectorSize];
+    } else {
+        int IndirectSector = (offset - SectorSize * numDirectSectors) / (SectorSize * NumSectorForBlock);
+        int SectorForIndirect[NumSectorForBlock];
+        kernel->synchDisk->ReadSector(IndirectSectors[IndirectSector], (char *)SectorForIndirect);
+        SectorID = SectorForIndirect[((offset - SectorSize * numDirectSectors) / SectorSize) % NumSectorForBlock];
+    }
+
+    return SectorID;
 }
 
 //----------------------------------------------------------------------
 // FileHeader::FileLength
 // 	Return the number of bytes in the file.
 //----------------------------------------------------------------------
-
 int FileHeader::FileLength() {
     return numBytes;
 }
@@ -157,24 +207,47 @@ int FileHeader::FileLength() {
 // 	Print the contents of the file header, and the contents of all
 //	the data blocks pointed to by the file header.
 //----------------------------------------------------------------------
-
 void FileHeader::Print() {
-    int i, j, k;
     char *data = new char[SectorSize];
 
     printf("FileHeader contents.  File size: %d.  File blocks:\n", numBytes);
-    for (i = 0; i < numSectors; i++)
-        printf("%d ", dataSectors[i]);
-    printf("\nFile contents:\n");
-    for (i = k = 0; i < numSectors; i++) {
-        kernel->synchDisk->ReadSector(dataSectors[i], data);
-        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
-            if ('\040' <= data[j] && data[j] <= '\176')  // isprint(data[j])
+    for (int i = 0; i < numDirectSectors; i++) {
+        printf("%d ", DirectSectors[i]);
+    }
+    for (int i = 0; i < numIndirectSectors; i++) {
+        int SectorForIndirect[NumSectorForBlock];
+        kernel->synchDisk->ReadSector(IndirectSectors[i], (char *)SectorForIndirect);
+        for (int j = 0; j < NumSectorForBlock; j++) {
+            printf("%d ", SectorForIndirect[j]);
+        }
+    }
+    printf("\n");
+
+    printf("File contents:\n");
+    int CountBytes = 0;
+    for (int i = 0; i < numDirectSectors; i++) {
+        kernel->synchDisk->ReadSector(DirectSectors[i], data);
+        for (int j = 0; (j < SectorSize) && (CountBytes < numBytes); j++, CountBytes++) {
+            if (isprint(data[j]) || data[j] == '\n' || data[j] == '\a')
                 printf("%c", data[j]);
             else
                 printf("\\%x", (unsigned char)data[j]);
         }
-        printf("\n");
     }
+    for (int i = 0; i < numIndirectSectors; i++) {
+        int SectorForIndirect[NumSectorForBlock];
+        kernel->synchDisk->ReadSector(IndirectSectors[i], (char *)SectorForIndirect);
+        for (int j = 0; j < NumSectorForBlock; j++) {
+            kernel->synchDisk->ReadSector(SectorForIndirect[j], data);
+            for (int k = 0; (k < SectorSize) && (CountBytes < numBytes); k++, CountBytes++) {
+                if (isprint(data[k]) || data[k] == '\n' || data[k] == '\a')
+                    printf("%c", data[k]);
+                else
+                    printf("\\%x", (unsigned char)data[k]);
+            }
+        }
+    }
+    printf("\n");
+
     delete[] data;
 }
