@@ -54,9 +54,7 @@ Debug *debug;
 // Cleanup
 //	Delete kernel data structures; called when user hits "ctl-C".
 //----------------------------------------------------------------------
-
-static void
-Cleanup(int x) {
+static void Cleanup(int x) {
     cerr << "\nCleaning up after signal " << x << "\n";
     delete kernel;
 }
@@ -73,7 +71,6 @@ static const int TransferSize = 128;
 // Copy
 //      Copy the contents of the UNIX file "from" to the Nachos file "to"
 //----------------------------------------------------------------------
-
 static void Copy(char *from, char *to) {
     int fd;
     OpenFile *openFile;
@@ -119,7 +116,6 @@ static void Copy(char *from, char *to) {
 // Print
 //      Print the contents of the Nachos file "name".
 //----------------------------------------------------------------------
-
 void Print(char *name) {
     OpenFile *openFile;
     int i, amountRead;
@@ -146,7 +142,7 @@ void Print(char *name) {
 //      Create a new directory with "name"
 //----------------------------------------------------------------------
 static void CreateDirectory(char *name) {
-    // MP4 Assignment
+    kernel->fileSystem->CreateDirectory(name);
 }
 
 //----------------------------------------------------------------------
@@ -297,7 +293,6 @@ int main(int argc, char **argv) {
         kernel->fileSystem->List();
     }
     if (mkdirFlag) {
-        // MP4 mod tag
         CreateDirectory(createDirectoryName);
     }
     if (printFileName != NULL) {

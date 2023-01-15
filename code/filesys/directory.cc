@@ -25,6 +25,13 @@
 #include "filehdr.h"
 #include "utility.h"
 
+DirectoryEntry::DirectoryEntry() {
+    inUse = false;
+    isDirectory = false;
+    sector = -1;
+    memset(name, '\0', sizeof(name));
+}
+
 //----------------------------------------------------------------------
 // Directory::Directory
 // 	Initialize a directory; initially, the directory is completely
@@ -34,23 +41,15 @@
 //
 //	"size" is the number of entries in the directory
 //----------------------------------------------------------------------
-
 Directory::Directory(int size) {
-    table = new DirectoryEntry[size];
-
-    // MP4 mod tag
-    memset(table, 0, sizeof(DirectoryEntry) * size);  // dummy operation to keep valgrind happy
-
     tableSize = size;
-    for (int i = 0; i < tableSize; i++)
-        table[i].inUse = FALSE;
+    table = new DirectoryEntry[tableSize];
 }
 
 //----------------------------------------------------------------------
 // Directory::~Directory
 // 	De-allocate directory data structure.
 //----------------------------------------------------------------------
-
 Directory::~Directory() {
     delete[] table;
 }
@@ -61,7 +60,6 @@ Directory::~Directory() {
 //
 //	"file" -- file containing the directory contents
 //----------------------------------------------------------------------
-
 void Directory::FetchFrom(OpenFile *file) {
     (void)file->ReadAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
 }
@@ -72,7 +70,6 @@ void Directory::FetchFrom(OpenFile *file) {
 //
 //	"file" -- file to contain the new directory contents
 //----------------------------------------------------------------------
-
 void Directory::WriteBack(OpenFile *file) {
     (void)file->WriteAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
 }
@@ -84,11 +81,13 @@ void Directory::WriteBack(OpenFile *file) {
 //
 //	"name" -- the file name to look up
 //----------------------------------------------------------------------
-
 int Directory::FindIndex(char *name) {
-    for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen))
+    for (int i = 0; i < tableSize; i++) {
+        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen)) {
             return i;
+        }
+    }
+
     return -1;  // name not in directory
 }
 
@@ -100,7 +99,6 @@ int Directory::FindIndex(char *name) {
 //
 //	"name" -- the file name to look up
 //----------------------------------------------------------------------
-
 int Directory::Find(char *name) {
     int i = FindIndex(name);
 
@@ -119,19 +117,21 @@ int Directory::Find(char *name) {
 //	"name" -- the name of the file being added
 //	"newSector" -- the disk sector containing the added file's header
 //----------------------------------------------------------------------
-
-bool Directory::Add(char *name, int newSector) {
+bool Directory::Add(char *name, int newSector, bool isDirectory) {
     if (FindIndex(name) != -1)
-        return FALSE;
+        return false;  // The file is already in the directory..
 
-    for (int i = 0; i < tableSize; i++)
+    for (int i = 0; i < tableSize; i++) {
         if (!table[i].inUse) {
-            table[i].inUse = TRUE;
+            table[i].inUse = true;
             strncpy(table[i].name, name, FileNameMaxLen);
             table[i].sector = newSector;
-            return TRUE;
+            table[i].isDirectory = isDirectory;
+            return true;
         }
-    return FALSE;  // no space.  Fix when we have extensible files.
+    }
+
+    return false;  // no space.  Fix when we have extensible files.
 }
 
 //----------------------------------------------------------------------
@@ -141,25 +141,46 @@ bool Directory::Add(char *name, int newSector) {
 //
 //	"name" -- the file name to be removed
 //----------------------------------------------------------------------
-
 bool Directory::Remove(char *name) {
     int i = FindIndex(name);
 
     if (i == -1)
-        return FALSE;  // name not in directory
-    table[i].inUse = FALSE;
-    return TRUE;
+        return false;  // name not in directory
+    table[i].inUse = false;
+    // Delete sector ?
+    memset(table[i].name, '\0', sizeof(table[i].name));
+    return true;
 }
 
 //----------------------------------------------------------------------
 // Directory::List
 // 	List all the file names in the directory.
 //----------------------------------------------------------------------
+void Directory::List(int Depth) {
+    // printf("List Directory\n");
+    for (int i = 0; i < tableSize; i++) {
+        if (table[i].inUse) {
+            for (int j = 0; j < Depth; j++) {
+                printf("\t");
+            }
+            if (table[i].isDirectory) {
+                printf("[D] %s %3d\n", table[i].name, table[i].sector);
 
-void Directory::List() {
-    for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse)
-            printf("%s\n", table[i].name);
+                Directory *directory = new Directory(NumDirEntries);
+                OpenFile *temp = new OpenFile(table[i].sector);
+
+                printf("%d\n", temp->hdr->DirectSectors[0]);
+                directory->FetchFrom(temp);
+
+                directory->List(Depth + 1);
+
+                delete directory;
+                delete temp;
+            } else {
+                printf("[F] %s %3d\n", table[i].name, table[i].sector);
+            }
+        }
+    }
 }
 
 //----------------------------------------------------------------------
@@ -167,17 +188,18 @@ void Directory::List() {
 // 	List all the file names in the directory, their FileHeader locations,
 //	and the contents of each file.  For debugging.
 //----------------------------------------------------------------------
-
 void Directory::Print() {
     FileHeader *hdr = new FileHeader;
 
     printf("Directory contents:\n");
-    for (int i = 0; i < tableSize; i++)
+    for (int i = 0; i < tableSize; i++) {
         if (table[i].inUse) {
             printf("Name: %s, Sector: %d\n", table[i].name, table[i].sector);
             hdr->FetchFrom(table[i].sector);
             hdr->Print();
         }
+    }
     printf("\n");
+
     delete hdr;
 }

@@ -86,6 +86,8 @@ class FileSystem {
     bool Create(char *name, int initialSize);
     // Create a file (UNIX create)
 
+    bool CreateDirectory(char *name);
+
     OpenFile *Open(char *name);  // Open a file (UNIX open)
 
     int Read(char *buf, int size, OpenFileId id);

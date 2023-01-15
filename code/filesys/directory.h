@@ -19,8 +19,9 @@
 
 #include "openfile.h"
 
-#define FileNameMaxLen 9 // for simplicity, we assume \
+#define FileNameMaxLen 9  // for simplicity, we assume \
                          // file names are <= 9 characters long
+#define NumDirEntries 10
 
 // The following class defines a "directory entry", representing a file
 // in the directory.  Each entry gives the name of the file, and where
@@ -29,14 +30,16 @@
 // Internal data structures kept public so that Directory operations can
 // access them directly.
 
-class DirectoryEntry
-{
-public:
-    bool inUse;                    // Is this directory entry in use?
-    int sector;                    // Location on disk to find the
-                                   //   FileHeader for this file
-    char name[FileNameMaxLen + 1]; // Text name for file, with +1 for
-                                   // the trailing '\0'
+class DirectoryEntry {
+   public:
+    DirectoryEntry();
+
+    bool inUse;  // Is this directory entry in use?
+    bool isDirectory;
+    int sector;                     // Location on disk to find the
+                                    //   FileHeader for this file
+    char name[FileNameMaxLen + 1];  // Text name for file, with +1 for
+                                    // the trailing '\0'
 };
 
 // The following class defines a UNIX-like "directory".  Each entry in
@@ -49,44 +52,43 @@ public:
 // FetchFrom/WriteBack operations shuffle the directory information
 // from/to disk.
 
-class Directory
-{
-public:
-    Directory(int size); // Initialize an empty directory
-                         // with space for "size" files
-    ~Directory();        // De-allocate the directory
+class Directory {
+   public:
+    Directory(int size);  // Initialize an empty directory
+                          // with space for "size" files
+    ~Directory();         // De-allocate the directory
 
-    void FetchFrom(OpenFile *file); // Init directory contents from disk
-    void WriteBack(OpenFile *file); // Write modifications to
-                                    // directory contents back to disk
+    void FetchFrom(OpenFile *file);  // Init directory contents from disk
+    void WriteBack(OpenFile *file);  // Write modifications to
+                                     // directory contents back to disk
 
-    int Find(char *name); // Find the sector number of the
-                          // FileHeader for file: "name"
+    int Find(char *name);  // Find the sector number of the
+                           // FileHeader for file: "name"
 
-    bool Add(char *name, int newSector); // Add a file name into the directory
+    bool Add(char *name, int newSector, bool isDirectory);  // Add a file name into the directory
 
-    bool Remove(char *name); // Remove a file from the directory
+    bool Remove(char *name);  // Remove a file from the directory
 
-    void List();  // Print the names of all the files
-                  //  in the directory
-    void Print(); // Verbose print of the contents
-                  //  of the directory -- all the file
-                  //  names and their contents.
+    void List(int Depth);  // Print the names of all the files
+                           //  in the directory
+    void Print();          // Verbose print of the contents
+                           //  of the directory -- all the file
+                           //  names and their contents.
 
-private:
+   private:
     /*
-		MP4 Hint:
-		Directory is actually a "file", be careful of how it works with OpenFile and FileHdr.
-		Disk part: table
-		In-core part: tableSize
-	*/
+            MP4 Hint:
+            Directory is actually a "file", be careful of how it works with OpenFile and FileHdr.
+            Disk part: table
+            In-core part: tableSize
+    */
 
-    int tableSize;         // Number of directory entries
-    DirectoryEntry *table; // Table of pairs:
-                           // <file name, file header location>
+    int tableSize;          // Number of directory entries
+    DirectoryEntry *table;  // Table of pairs:
+                            // <file name, file header location>
 
-    int FindIndex(char *name); // Find the index into the directory
-                               //  table corresponding to "name"
+    int FindIndex(char *name);  // Find the index into the directory
+                                //  table corresponding to "name"
 };
 
-#endif // DIRECTORY_H
+#endif  // DIRECTORY_H
