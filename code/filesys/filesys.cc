@@ -187,18 +187,15 @@ FileSystem::~FileSystem() {
 //	"initialSize" -- size of file to be created
 //----------------------------------------------------------------------
 bool FileSystem::Create(char *name, int initialSize) {
-    Directory *root;
-    PersistentBitmap *freeMap;
-    FileHeader *hdr;
+    Directory *root = new Directory(NumDirEntries);
+    OpenFile *RootOpenFile = directoryFile;
     char *Filename = name + 1;
-    int RootSectorID = DirectorySector;
-    int sector;
-    bool success;
+    int sectorID;
+    bool success = false;
 
     DEBUG(dbgFile, "Creating file " << name << " size " << initialSize);
 
-    root = new Directory(NumDirEntries);
-    root->FetchFrom(directoryFile);
+    root->FetchFrom(RootOpenFile);
     for (int i = 0;; i++) {
         if (Filename[i] == '\0') {
             break;
@@ -208,64 +205,56 @@ bool FileSystem::Create(char *name, int initialSize) {
             for (int j = 0; j < i; j++) {
                 temp[j] = Filename[j];
             }
-
             Filename += i + 1;
-            printf("Filename : %s root : %s\n", Filename, temp);
 
-            RootSectorID = root->Find(temp);
-            OpenFile *Dir = new OpenFile(RootSectorID);
-            root->FetchFrom(Dir);
-            delete Dir;
+            sectorID = root->Find(temp);
+            if (RootOpenFile != directoryFile) {
+                delete RootOpenFile;
+            }
+            RootOpenFile = new OpenFile(sectorID);
+            root->FetchFrom(RootOpenFile);
         }
     }
-    // printf("%s\n", Filename);
 
     if (root->Find(Filename) != -1) {
-        success = FALSE;  // file is already in directory
+        success = false;  // file is already in directory
     } else {
-        freeMap = new PersistentBitmap(freeMapFile, NumSectors);
-        sector = freeMap->FindAndSet();  // find a sector to hold the file header
-        if (sector == -1) {
-            success = FALSE;  // no free block for file header
-        } else if (!root->Add(Filename, sector, false)) {
-            success = FALSE;  // no space in directory
+        PersistentBitmap *freeMap = new PersistentBitmap(freeMapFile, NumSectors);
+        int FreeSector = freeMap->FindAndSet();  // find a sector to hold the file header
+        if (FreeSector == -1) {
+            success = false;  // no free block for file header
+        } else if (!root->Add(Filename, FreeSector, false)) {
+            success = false;  // no space in directory
         } else {
-            hdr = new FileHeader;
+            FileHeader *hdr = new FileHeader;
             if (!hdr->Allocate(freeMap, initialSize)) {
-                success = FALSE;  // no space on disk for data
+                success = false;  // no space on disk for data
             } else {
-                success = TRUE;
-                // everything worked, flush all changes back to disk
-                hdr->WriteBack(sector);
-
-                OpenFile *Dir = new OpenFile(RootSectorID);
-                root->WriteBack(Dir);
-                delete Dir;
-
+                success = true;
+                hdr->WriteBack(FreeSector);
+                root->WriteBack(RootOpenFile);
                 freeMap->WriteBack(freeMapFile);
             }
             delete hdr;
         }
         delete freeMap;
     }
-    delete root;
+    if (RootOpenFile != directoryFile) {
+        delete root;
+        delete RootOpenFile;
+    }
 
     return success;
 }
 
 bool FileSystem::CreateDirectory(char *name) {
-    Directory *root;
-    Directory *NewDirectory;
-    PersistentBitmap *freeMap;
-    OpenFile *NewOpenFile;
+    Directory *root = new Directory(NumDirEntries);
+    OpenFile *RootOpenFile = directoryFile;
     char *DirectoryName = name + 1;
-    int FreeSector;
-    int RootSectorID = DirectorySector;
 
     DEBUG(dbgFile, "Creating directory " << name);
 
-    root = new Directory(NumDirEntries);
-    root->FetchFrom(directoryFile);
+    root->FetchFrom(RootOpenFile);
     for (int i = 0;; i++) {
         if (DirectoryName[i] == '\0') {
             break;
@@ -275,36 +264,30 @@ bool FileSystem::CreateDirectory(char *name) {
             for (int j = 0; j < i; j++) {
                 temp[j] = DirectoryName[j];
             }
-
             DirectoryName += i + 1;
 
-            RootSectorID = root->Find(temp);
-            OpenFile *Dir = new OpenFile(RootSectorID);
-            root->FetchFrom(Dir);
-            delete Dir;
-
-            // printf("Directory name : %s root : %s root sector : %d\n", DirectoryName, temp, sectorID);
+            int sectorID = root->Find(temp);
+            if (RootOpenFile != directoryFile) {
+                delete RootOpenFile;
+            }
+            RootOpenFile = new OpenFile(sectorID);
+            root->FetchFrom(RootOpenFile);
         }
     }
 
-    freeMap = new PersistentBitmap(freeMapFile, NumSectors);
-    FreeSector = freeMap->FindAndSet();
-    ASSERT(FreeSector >= 0);
+    PersistentBitmap *freeMap = new PersistentBitmap(freeMapFile, NumSectors);
+    int FreeSector = freeMap->FindAndSet();
     freeMap->WriteBack(freeMapFile);
     delete freeMap;
 
-    NewOpenFile = new OpenFile(FreeSector);
-    NewDirectory = new Directory(NumDirEntries);
-    NewDirectory->WriteBack(NewOpenFile);
-    delete NewDirectory;
-    delete NewOpenFile;
-
-    OpenFile *Dir = new OpenFile(RootSectorID);
-    root->FetchFrom(Dir);
     root->Add(DirectoryName, FreeSector, true);
-    root->WriteBack(Dir);
-    delete root;
-    delete Dir;
+    root->WriteBack(RootOpenFile);
+    if (RootOpenFile != directoryFile) {
+        delete root;
+        delete RootOpenFile;
+    }
+
+    DEBUG(dbgFile, "Sector num : " << FreeSector);
 
     return true;
 }
@@ -320,12 +303,10 @@ bool FileSystem::CreateDirectory(char *name) {
 //----------------------------------------------------------------------
 OpenFile *FileSystem::Open(char *name) {
     Directory *root = new Directory(NumDirEntries);
-    OpenFile *openFile = NULL;
     char *FileName = name + 1;
-    int sector;
-    int RootSectorID = DirectorySector;
+    int sectorID = DirectorySector;
 
-    DEBUG(dbgFile, "Opening file" << FileName);
+    DEBUG(dbgFile, "Opening file " << FileName);
 
     root->FetchFrom(directoryFile);
     for (int i = 0;; i++) {
@@ -337,25 +318,23 @@ OpenFile *FileSystem::Open(char *name) {
             for (int j = 0; j < i; j++) {
                 temp[j] = FileName[j];
             }
-
             FileName += i + 1;
-            // printf("Filename : %s root : %s\n", FileName, temp);
 
-            RootSectorID = root->Find(temp);
-            FileHeader *Hdr = new FileHeader;
-            Hdr->FetchFrom(RootSectorID);
-            root->FetchFrom(Dir);
-            delete Dir;
+            sectorID = root->Find(temp);
+            OpenFile *next = new OpenFile(sectorID);
+            root->FetchFrom(next);
+            delete next;
         }
     }
 
-    sector = root->Find(FileName);
-    if (sector >= 0)
-        openFile = new OpenFile(sector);  // name was found in directory
-    delete root;
+    sectorID = root->Find(FileName);
+    OpenFile *openfile = new OpenFile(sectorID);
+    OpenFileTable[0] = openfile;
 
-    OpenFileTable[0] = openFile;
-    return openFile;  // return NULL if not found
+    if (sectorID != DirectorySector) {
+        delete root;
+    }
+    return openfile;  // return NULL if not found
 }
 
 int FileSystem::Read(char *buf, int size, OpenFileId id) {
@@ -424,8 +403,8 @@ bool FileSystem::Remove(char *name) {
 //----------------------------------------------------------------------
 void FileSystem::List() {
     Directory *directory = new Directory(NumDirEntries);
-
     directory->FetchFrom(directoryFile);
+
     directory->List(0);
     delete directory;
 }
@@ -440,7 +419,6 @@ void FileSystem::List() {
 //	      the data in the file
 //----------------------------------------------------------------------
 void FileSystem::Print() {
-    printf("Print\n");
     FileHeader *bitHdr = new FileHeader;
     FileHeader *dirHdr = new FileHeader;
     PersistentBitmap *freeMap = new PersistentBitmap(freeMapFile, NumSectors);

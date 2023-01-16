@@ -157,7 +157,6 @@ bool Directory::Remove(char *name) {
 // 	List all the file names in the directory.
 //----------------------------------------------------------------------
 void Directory::List(int Depth) {
-    // printf("List Directory\n");
     for (int i = 0; i < tableSize; i++) {
         if (table[i].inUse) {
             for (int j = 0; j < Depth; j++) {
@@ -168,10 +167,7 @@ void Directory::List(int Depth) {
 
                 Directory *directory = new Directory(NumDirEntries);
                 OpenFile *temp = new OpenFile(table[i].sector);
-
-                printf("%d\n", temp->hdr->DirectSectors[0]);
                 directory->FetchFrom(temp);
-
                 directory->List(Depth + 1);
 
                 delete directory;
